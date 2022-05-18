@@ -495,13 +495,15 @@ struct ForOpInterface
       return failure();
     SmallVector<Value> initArgs = *maybeInitArgs;
 
+    ValueRange initArgsRange(initArgs);
+    TypeRange initArgsTypes(initArgsRange);
+
     // Construct a new scf.for op with memref instead of tensor values.
     auto newForOp = rewriter.create<scf::ForOp>(
         forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
         forOp.getStep(), initArgs);
     newForOp->setAttrs(forOp->getAttrs());
-    ValueRange initArgsRange(initArgs);
-    TypeRange initArgsTypes(initArgsRange);
+
     Block *loopBody = &newForOp.getLoopBody().front();
 
     // Set up new iter_args. The loop body uses tensors, so wrap the (memref)
@@ -845,6 +847,12 @@ struct WhileOpInterface
 
     return success();
   }
+
+  bool isAllocationHoistingBarrier(Operation *op) const {
+    auto attr = op->getAttrOfType<BoolAttr>("parallel");
+    return attr != nullptr && attr.getValue();
+  }
+
 };
 
 /// Bufferization of scf.yield. Bufferized as part of their enclosing ops, so
