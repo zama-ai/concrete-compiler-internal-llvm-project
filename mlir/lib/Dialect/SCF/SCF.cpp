@@ -654,6 +654,7 @@ struct ForOpIterArgsFolder : public OpRewritePattern<scf::ForOp> {
     scf::ForOp newForOp = rewriter.create<scf::ForOp>(
         forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
         forOp.getStep(), newIterArgs);
+    newForOp->setAttrs(forOp->getAttrs());
     Block &newBlock = newForOp.getRegion().front();
 
     // Replace the null placeholders with newly constructed values.

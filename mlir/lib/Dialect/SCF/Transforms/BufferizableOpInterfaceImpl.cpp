@@ -376,6 +376,7 @@ struct ForOpInterface
     auto newForOp = rewriter.create<scf::ForOp>(
         forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
         forOp.getStep(), initArgs);
+    newForOp->setAttrs(forOp->getAttrs());
     Block *loopBody = &newForOp.getLoopBody().front();
 
     // Set up new iter_args. The loop body uses tensors, so wrap the (memref)
@@ -474,6 +475,12 @@ struct ForOpInterface
     }
     return success();
   }
+
+  bool isAllocationHoistingBarrier(Operation *op) const {
+    auto attr = op->getAttrOfType<BoolAttr>("parallel");
+    return attr != nullptr && attr.getValue();
+  }
+
 };
 
 /// Bufferization of scf.yield. Bufferized as part of their enclosing ops, so
