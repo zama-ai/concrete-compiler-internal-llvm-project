@@ -570,11 +570,15 @@ struct ForOpInterface
       castedInitArgs.push_back(castBuffer(rewriter, initArg, *targetType));
     }
 
+    ValueRange initArgsRange(initArgs);
+    TypeRange initArgsTypes(initArgsRange);
+
     // Construct a new scf.for op with memref instead of tensor values.
     auto newForOp = rewriter.create<scf::ForOp>(
         forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
         forOp.getStep(), castedInitArgs);
     newForOp->setAttrs(forOp->getAttrs());
+
     Block *loopBody = &newForOp.getLoopBody().front();
 
     // Set up new iter_args. The loop body uses tensors, so wrap the (memref)
@@ -923,6 +927,11 @@ struct WhileOpInterface
     }
 
     return success();
+  }
+
+  bool isAllocationHoistingBarrier(Operation *op) const {
+    auto attr = op->getAttrOfType<BoolAttr>("parallel");
+    return attr != nullptr && attr.getValue();
   }
 };
 
