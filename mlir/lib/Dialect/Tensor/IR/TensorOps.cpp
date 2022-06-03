@@ -402,8 +402,93 @@ OpFoldResult ExtractOp::fold(ArrayRef<Attribute> operands) {
     if (elementsAttr && elementsAttr.isValidIndex(indices))
       return elementsAttr.getValues<Attribute>()[indices];
   }
-
   return {};
+}
+
+LogicalResult ExtractOp::canonicalize(ExtractOp extractOp,
+                                      PatternRewriter &rewriter) {
+  // rewrite extract(collapse)
+  if (auto collapseOp = extractOp.tensor().getDefiningOp<CollapseShapeOp>()) {
+    mlir::SmallVector<mlir::Value> newIndices;
+    auto indices = extractOp.indices();
+
+    auto beforeCollapseType =
+        collapseOp.src().getType().cast<mlir::RankedTensorType>();
+
+    auto reassocIndices = collapseOp.getReassociationIndices();
+    for (int64_t to = 0; to < reassocIndices.size(); to++) {
+      auto froms = reassocIndices[to];
+      // Create offset on the un collapsed tensor
+      for (auto i = 0; i < froms.size() - 1; i++) {
+        auto from = froms[i];
+        if (beforeCollapseType.getDimSize(from) == 1) {
+          // create constant
+          mlir::arith::ConstantIndexOp zero =
+              rewriter.create<mlir::arith::ConstantIndexOp>(extractOp.getLoc(),
+                                                            0);
+          newIndices.push_back(zero);
+        } else {
+          // for now we don't catch other case
+          return mlir::failure();
+        }
+      }
+      indices.back().dump();
+      newIndices.push_back(indices.back());
+      indices = indices.drop_back(1);
+    }
+    rewriter.replaceOpWithNewOp<ExtractOp>(extractOp, collapseOp.src(),
+                                           newIndices);
+    return mlir::success();
+  }
+  // rewrite extract(extract_slice)
+  if (auto extractSliceOp =
+          extractOp.tensor().getDefiningOp<ExtractSliceOp>()) {
+    if (!extractSliceOp.hasUnitStride()) {
+      return mlir::failure();
+    }
+    mlir::SmallVector<mlir::Value> newIndices;
+    auto oldOffsets = getValueOrCreateConstantIndexOp(
+        rewriter, extractOp.getLoc(), extractSliceOp.getMixedOffsets());
+    auto oldIndices = extractOp.indices();
+    newIndices.reserve(oldIndices.size());
+    for (size_t i = 0; i < oldIndices.size(); i++) {
+
+      auto oldOffset = oldOffsets[i];
+      auto oldOffsetCst =
+          dyn_cast_or_null<arith::ConstantIndexOp>(oldOffset.getDefiningOp());
+      auto oldIndice = oldIndices[i];
+      auto oldIndiceCst =
+          dyn_cast_or_null<arith::ConstantIndexOp>(oldIndice.getDefiningOp());
+
+      llvm::errs() << "VV\n";
+      if (oldOffsetCst != nullptr && oldOffsetCst.value() == 0) {
+        newIndices.push_back(oldIndice);
+        continue;
+      }
+      if (oldIndiceCst != nullptr && oldIndiceCst.value() == 0) {
+        newIndices.push_back(oldOffset);
+        continue;
+      }
+      if (oldIndiceCst != nullptr && oldOffsetCst != nullptr) {
+        newIndices.push_back(rewriter.create<arith::ConstantIndexOp>(
+            extractOp.getLoc(), oldIndiceCst.value() + oldOffsetCst.value()));
+        continue;
+      }
+      llvm::errs() << "XX FAIL \n";
+      return mlir::failure();
+    }
+    for (auto x : newIndices) {
+      llvm::errs() << "indice \n";
+      x.dump();
+    }
+    llvm::errs() << "create op \n";
+    extractSliceOp.source().dump();
+    rewriter.replaceOpWithNewOp<ExtractOp>(extractOp, extractSliceOp.source(),
+                                           newIndices);
+    llvm::errs() << "done \n";
+    return mlir::success();
+  }
+  return mlir::failure();
 }
 
 //===----------------------------------------------------------------------===//

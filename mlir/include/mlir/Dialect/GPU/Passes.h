@@ -27,6 +27,8 @@ namespace func {
 class FuncOp;
 } // namespace func
 
+std::unique_ptr<Pass> createTestGpuParallelLoopMappingPass();
+
 /// Pass that moves ops which are likely an index computation into gpu.launch
 /// body.
 std::unique_ptr<Pass> createGpuLauchSinkIndexComputationsPass();
@@ -116,6 +118,11 @@ std::unique_ptr<Pass> createGpuSerializeToHsacoPass(StringRef triple,
                                                     StringRef arch,
                                                     StringRef features,
                                                     int optLevel);
+
+#ifdef MLIR_GPU_TO_CUBIN_PASS_ENABLE
+/// Create an instance of the GPU kernel function to CUBIN blob pass.
+std::unique_ptr<Pass> createGpuSerializeToCubinPass();
+#endif
 
 /// Generate the code for registering passes.
 #define GEN_PASS_REGISTRATION

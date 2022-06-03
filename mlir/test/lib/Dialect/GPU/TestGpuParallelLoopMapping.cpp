@@ -39,6 +39,10 @@ struct TestGpuGreedyParallelLoopMappingPass
 } // namespace
 
 namespace mlir {
+std::unique_ptr<Pass> createTestGpuParallelLoopMappingPass() {
+  return std::make_unique<TestGpuGreedyParallelLoopMappingPass>();
+}
+
 namespace test {
 void registerTestGpuParallelLoopMappingPass() {
   PassRegistration<TestGpuGreedyParallelLoopMappingPass>();

@@ -166,6 +166,7 @@ def Tensor_ExtractOp : Tensor_Op<"extract",
     }]>];
 
   let hasFolder = 1;
+  let hasCanonicalizeMethod = 1;
   let hasVerifier = 1;
 }
 
