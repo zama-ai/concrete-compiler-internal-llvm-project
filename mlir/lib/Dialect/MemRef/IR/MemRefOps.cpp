@@ -2053,8 +2053,43 @@ LogicalResult StoreOp::verify() {
 
 LogicalResult StoreOp::fold(ArrayRef<Attribute> cstOperands,
                             SmallVectorImpl<OpFoldResult> &results) {
-  /// store(memrefcast) -> store
-  return foldMemRefCast(*this, getValueToStore());
+  auto result = LogicalResult::failure();
+  // store(memrefcast) -> store
+  if (foldMemRefCast(*this, getValueToStore()).succeeded() && result.failed()) {
+    result = LogicalResult::success();
+  }
+  // If %0 is never read
+  // store %x, %0[...]
+  // copy %0, %1
+  // =>
+  // store %x, %1
+  llvm::errs() << "INSPECT use of memref of\n";
+  this->dump();
+  this->memref().dump();
+  llvm::errs() << "\n\n";
+  llvm::SmallVector<CopyOp> copies;
+  if (llvm::all_of(this->memref().getUses(),
+                   [&](OpOperand &use) {
+                     if (auto copy = llvm::dyn_cast<CopyOp>(use.getOwner())) {
+                       copies.push_back(copy);
+                       return true;
+                     }
+                     if (use.getOwner() == this->getOperation()) {
+                       return true;
+                     }
+                     if (auto memEffect =
+                             llvm::dyn_cast<mlir::MemoryEffectOpInterface>(
+                                 use.getOwner())) {
+                       return !memEffect.hasEffect<mlir::MemoryEffects::Read>();
+                     }
+                     return true;
+                   }) &&
+      copies.size() == 1) {
+    llvm::errs() << "Set new operand from copy\n";
+    this->getOperation()->getOpOperand(1).set(copies[0].target());
+  }
+  this->dump();
+  return result;
 }
 
 //===----------------------------------------------------------------------===//
