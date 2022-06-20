@@ -27,6 +27,8 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/YAMLTraits.h"
 
+#include <set>
+
 using namespace mlir;
 
 using llvm::yaml::Input;
@@ -643,6 +645,53 @@ ArrayAttr {0}::indexing_maps() {{
 }
 )FMT";
 
+/// Returns the operator instantiation interface name for an
+/// arithmetic function.
+static std::string
+scalarFnToOperatorInstantiationInterface(const std::string &fnName) {
+  return "Linalg_Instantiate" +
+         llvm::convertToCamelFromSnakeCase(fnName, true) +
+         "OperatorOpInterface";
+}
+
+/// Returns the operator instantiation interface function name for an
+/// arithmetic function.
+static std::string
+scalarFnToOperatorInstantiationFunction(const std::string &fnName) {
+  return "instantiate" + llvm::convertToCamelFromSnakeCase(fnName, true) +
+         "Operator";
+}
+
+/// Returns a set with all operator instantiation interfaces required
+/// for an operation.
+static std::set<std::string>
+requiredOperatorInstantiationInterfaces(LinalgOpConfig &opConfig) {
+  std::set<std::string> interfaces;
+
+  if (opConfig.structuredOp.hasValue()) {
+    std::function<void(const ScalarExpression &)> collectInterfaces =
+        [&](const ScalarExpression &expr) {
+          if (expr.scalarFn.hasValue()) {
+            if (expr.scalarFn->kind != ScalarFnKind::Type &&
+                expr.scalarFn->fnName.hasValue()) {
+              interfaces.emplace(scalarFnToOperatorInstantiationInterface(
+                  expr.scalarFn->fnName.getValue()));
+            }
+
+            for (const ScalarExpression &subexpr :
+                 expr.scalarFn.getValue().operands)
+              collectInterfaces(subexpr);
+          }
+        };
+
+    for (const ScalarAssign &assign :
+         opConfig.structuredOp.getValue().assignments)
+      collectInterfaces(assign.value);
+  }
+
+  return interfaces;
+}
+
 // Implementations of fold and getEffects.
 // Parameters:
 // {0}: Class name
@@ -700,6 +749,16 @@ static LogicalResult generateNamedGenericOpOds(LinalgOpConfig &opConfig,
   }
 
   interfaceNameList = interleaveToString(opConfig.metadata->implements, ", ");
+
+  std::set<std::string> operatorIfaces =
+      requiredOperatorInstantiationInterfaces(opConfig);
+
+  if (!operatorIfaces.empty()) {
+    if (!interfaceNameList.empty())
+      interfaceNameList += ", ";
+
+    interfaceNameList += interleaveToString(operatorIfaces, ", ");
+  }
 
   std::string definitionList;
   for (const std::string &definition : opConfig.metadata->defines) {
@@ -1125,7 +1184,7 @@ if ({1}Iter != attrs.end()) {{
           // Call the function builder.
           std::string cppIdent = llvm::formatv("value{0}", ++localCounter);
           stmts.push_back(llvm::formatv(
-              "Value {0} = helper.build{1}({2}, {3});", cppIdent, enumName,
+              "Value {0} = helper.build{1}(attrs, {2}, {3});", cppIdent, enumName,
               funcType, interleaveToString(operandCppValues, ", ")));
           return cppIdent;
         }

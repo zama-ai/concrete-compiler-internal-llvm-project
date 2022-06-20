@@ -96,10 +96,10 @@ structured_op: !LinalgStructuredOpConfig
 #  IMPL-NEXT:  }
 
 #       IMPL:  Value [[VAL0:[a-z0-9]+]] = helper.constant("42 : i64");
-#   IMPL-DAG:  Value [[VAL1:[a-z0-9]+]] = helper.buildTypeFn(castVal, block.getArgument(0).getType(), [[VAL0]]);
+#   IMPL-DAG:  Value [[VAL1:[a-z0-9]+]] = helper.buildTypeFn(attrs, castVal, block.getArgument(0).getType(), [[VAL0]]);
 #   IMPL-DAG:  Value [[VAL2:[a-z0-9]+]] = helper.index(1);
-#   IMPL-DAG:  Value [[VAL3:[a-z0-9]+]] = helper.buildTypeFn(castVal, block.getArgument(0).getType(), [[VAL2]]);
-#   IMPL-DAG:  Value [[VAL4:[a-z0-9]+]] = helper.buildBinaryFn(BinaryFn::add, [[VAL1]], [[VAL3]]);
+#   IMPL-DAG:  Value [[VAL3:[a-z0-9]+]] = helper.buildTypeFn(attrs, castVal, block.getArgument(0).getType(), [[VAL2]]);
+#   IMPL-DAG:  Value [[VAL4:[a-z0-9]+]] = helper.buildBinaryFn(attrs, BinaryFn::add, [[VAL1]], [[VAL3]]);
 
 
 # @linalg_structured_op
@@ -318,8 +318,8 @@ structured_op: !LinalgStructuredOpConfig
 #       IMPL:  UnaryFn unary_funVal = UnaryFn::exp
 #       IMPL:  BinaryFn binary_funVal = BinaryFn::add
 
-#       IMPL:  Value [[VAL0:[a-z0-9]+]] = helper.buildUnaryFn(unary_funVal, block.getArgument(0))
-#  IMPL-NEXT:  Value [[VAL1:[a-z0-9]+]] = helper.buildBinaryFn(binary_funVal, [[VAL0]], block.getArgument(0))
+#       IMPL:  Value [[VAL0:[a-z0-9]+]] = helper.buildUnaryFn(attrs, unary_funVal, block.getArgument(0))
+#  IMPL-NEXT:  Value [[VAL1:[a-z0-9]+]] = helper.buildBinaryFn(attrs, binary_funVal, [[VAL0]], block.getArgument(0))
 #  IMPL-NEXT:  yields.push_back([[VAL1]])
 
 # @linalg_structured_op
