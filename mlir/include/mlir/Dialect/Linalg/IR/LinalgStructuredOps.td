@@ -14,6 +14,7 @@
 #ifndef LINALG_STRUCTURED_OPS
 #define LINALG_STRUCTURED_OPS
 
+include "mlir/Dialect/Linalg/Frontend/LinalgFrontendInterfaces.td"
 include "mlir/Dialect/Linalg/IR/LinalgBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"

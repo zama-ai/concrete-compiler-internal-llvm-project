@@ -63,16 +63,22 @@ static bool isChainOfUnaryOpsFrom(Value v, Value from) {
   };
 }
 
-/// Return the unique instance of OpType in `block` if it is indeed unique.
-/// Return null if none or more than 1 instances exist.
-template <typename OpType>
-static OpType getSingleOpOfType(Block &block) {
-  OpType res = nullptr;
-  block.walk([&](OpType op) {
+/// Return the unique operation in `block` that satisfies `predicate`
+/// if it is indeed unique.  Return null if none or more than 1
+/// instances exist.
+static Operation *
+getSingleOpMatching(Block &block, std::function<bool(Operation *)> predicate) {
+  Operation *res = nullptr;
+
+  block.walk([&](Operation *op) {
+    if (!predicate(op))
+      return WalkResult::advance();
+
     if (res) {
       res = nullptr;
       return WalkResult::interrupt();
     }
+
     res = op;
     return WalkResult::advance();
   });
@@ -80,18 +86,29 @@ static OpType getSingleOpOfType(Block &block) {
 }
 
 /// Detect whether res is any permutation of `u5(u1(c) + u2(u3(a) * u4(b)))`
-/// on the field (AddOpType, MulOpType), where u1, u2, u3, u4 and u5 represent
+/// on the field (+, *), where u1, u2, u3, u4 and u5 represent
 /// unary operations that may change the type.
-template <typename AddOpType, typename MulOpType>
-static bool isAddMul(Block &block) {
+static bool hasAddMulRegion(linalg::LinalgOp &linalgOp) {
+  Block &block = linalgOp->getRegion(0).front();
+
   if (block.getNumArguments() != 3)
     return false;
   Operation *yieldOp = block.getTerminator();
   if (yieldOp->getNumOperands() != 1)
     return false;
 
-  AddOpType addOp = getSingleOpOfType<AddOpType>(block);
-  MulOpType mulOp = getSingleOpOfType<MulOpType>(block);
+  auto addOpIface =
+      dyn_cast<InstantiateAddOperatorOpInterface>(linalgOp.getOperation());
+  auto mulOpIface =
+      dyn_cast<InstantiateMulOperatorOpInterface>(linalgOp.getOperation());
+
+  if (!addOpIface || !mulOpIface)
+    return false;
+
+  Operation *addOp = getSingleOpMatching(
+      block, [&](Operation *op) { return addOpIface.isAddOperator(*op); });
+  Operation *mulOp = getSingleOpMatching(
+      block, [&](Operation *op) { return mulOpIface.isMulOperator(*op); });
   if (!addOp || !mulOp)
     return false;
 
@@ -133,11 +150,7 @@ static MatchContractionResult isContractionInterfaceImpl(Operation *op) {
                    [](AffineMap m) { return !m.isProjectedPermutation(); }))
     return MatchContractionResult::NotProjectedPermutations;
   // TODO: more fields than add/mul.
-  if (!isAddMul<arith::AddFOp, arith::MulFOp>(linalgOp->getRegion(0).front()) &&
-      !isAddMul<arith::AddIOp, arith::MulIOp>(linalgOp->getRegion(0).front()) &&
-      !isAddMul<complex::AddOp, complex::MulOp>(
-          linalgOp->getRegion(0).front()) &&
-      !isAddMul<arith::OrIOp, arith::AndIOp>(linalgOp->getRegion(0).front()))
+  if (!hasAddMulRegion(linalgOp))
     return MatchContractionResult::NotAddMul;
   return MatchContractionResult::Success;
 }
