@@ -1,0 +1,5 @@
+set(LLVM_TARGET_DEFINITIONS LinalgFrontendInterfaces.td)
+mlir_tablegen(LinalgFrontendOpInterfaces.h.inc -gen-op-interface-decls)
+mlir_tablegen(LinalgFrontendOpInterfaces.cpp.inc -gen-op-interface-defs)
+add_public_tablegen_target(MLIRLinalgFrontendInterfacesIncGen)
+add_dependencies(mlir-headers MLIRLinalgFrontendInterfacesIncGen)

@@ -28,6 +28,8 @@
 #include "llvm/Support/YAMLTraits.h"
 #include <optional>
 
+#include <set>
+
 using namespace mlir;
 
 using llvm::yaml::Input;
@@ -649,6 +651,44 @@ ArrayAttr {0}::getIndexingMaps() {{
 }
 )FMT";
 
+/// Returns the operator instantiation interface name for an
+/// arithmetic function.
+static std::string
+scalarFnToOperatorInstantiationInterface(const std::string &fnName) {
+  return "Linalg_Instantiate" +
+         llvm::convertToCamelFromSnakeCase(fnName, true) +
+         "OperatorOpInterface";
+}
+
+/// Returns a set with all operator instantiation interfaces required
+/// for an operation.
+static std::set<std::string>
+requiredOperatorInstantiationInterfaces(LinalgOpConfig &opConfig) {
+  std::set<std::string> interfaces;
+
+  if (opConfig.structuredOp.has_value()) {
+    std::function<void(const ScalarExpression &)> collectInterfaces =
+        [&](const ScalarExpression &expr) {
+          if (expr.scalarFn.has_value()) {
+            if (expr.scalarFn->kind != ScalarFnKind::Type &&
+                expr.scalarFn->fnName.has_value()) {
+              interfaces.emplace(scalarFnToOperatorInstantiationInterface(
+                  expr.scalarFn->fnName.value()));
+            }
+
+            for (const ScalarExpression &subexpr :
+                 expr.scalarFn.value().operands)
+              collectInterfaces(subexpr);
+          }
+        };
+
+    for (const ScalarAssign &assign : opConfig.structuredOp.value().assignments)
+      collectInterfaces(assign.value);
+  }
+
+  return interfaces;
+}
+
 // Implementations of fold and getEffects.
 // Parameters:
 // {0}: Class name
@@ -705,6 +745,16 @@ static LogicalResult generateNamedGenericOpOds(LinalgOpConfig &opConfig,
   }
 
   interfaceNameList = interleaveToString(opConfig.metadata->implements, ", ");
+
+  std::set<std::string> operatorIfaces =
+      requiredOperatorInstantiationInterfaces(opConfig);
+
+  if (!operatorIfaces.empty()) {
+    if (!interfaceNameList.empty())
+      interfaceNameList += ", ";
+
+    interfaceNameList += interleaveToString(operatorIfaces, ", ");
+  }
 
   std::string definitionList;
   for (const std::string &definition : opConfig.metadata->defines) {
@@ -1134,8 +1184,8 @@ if ({1}Iter != attrs.end()) {{
           // Call the function builder.
           std::string cppIdent = llvm::formatv("value{0}", ++localCounter);
           stmts.push_back(llvm::formatv(
-              "Value {0} = helper.build{1}({2}, {3});", cppIdent, enumName,
-              funcType, interleaveToString(operandCppValues, ", ")));
+              "Value {0} = helper.build{1}(attrs, {2}, {3});", cppIdent,
+              enumName, funcType, interleaveToString(operandCppValues, ", ")));
           return cppIdent;
         }
         emitError(genContext.getLoc()) << "unknown ScalarExpression type";

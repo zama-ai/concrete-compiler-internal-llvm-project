@@ -17,6 +17,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Utils/Utils.h"
 #include "mlir/Dialect/Complex/IR/Complex.h"
+#include "mlir/Dialect/Linalg/Frontend/LinalgFrontendInterfaces.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -265,20 +266,23 @@ static void printNamedStructuredOp(OpAsmPrinter &p, Operation *op,
 // DSL. See LinalgNamedStructuredOps.yamlgen.cpp.inc for the code that uses this
 // class.
 //
-// Implementations of the math functions must be polymorphic over numeric types,
-// internally performing necessary casts. If the function application makes no
-// sense, then the only recourse is to assert and return nullptr. This can be
-// extended later if it becomes possible to fail construction of the region. The
-// invariant should be enforced at a higher level.
+// Implementations of the math functions are provided by operator
+// instantiation interfaces, one per mathematical operator. These
+// interfaces either instantiate an operation from the name of an
+// operation provided as an attribute or a default operation for the
+// given values.
 //
-// TODO: These helpers are currently type polymorphic over the class of integer
-// and floating point types, but they will not internally cast within bit
-// widths of a class (mixed precision such as i8->i32) or across classes
-// (i.e. mixed float and integer). Many such combinations are ambiguous or need
-// to be handled with care and work is being considered to extend the op
-// language to make such cases explicit. In the mean-time, violating this will
-// fail verification, which is deemed acceptable.
-//===----------------------------------------------------------------------===//
+// TODO: The default instantiation scheme in the absence of an
+// attribute specifying an operation implementing an operator is
+// currently type polymorphic over the class of integer and floating
+// point types, but does not internally cast within bit widths of a
+// class (mixed precision such as i8->i32) or across classes
+// (i.e. mixed float and integer). Many such combinations are
+// ambiguous or need to be handled with care and work is being
+// considered to extend the op language to make such cases
+// explicit. In the mean-time, violating this will fail verification,
+// which is deemed acceptable.
+// ===----------------------------------------------------------------------===//
 
 namespace {
 
@@ -288,88 +292,99 @@ public:
       : context(context), block(block) {}
 
   // Build the unary functions defined by OpDSL.
-  Value buildUnaryFn(UnaryFn unaryFn, Value arg) {
-    if (!isFloatingPoint(arg))
-      llvm_unreachable("unsupported non numeric type");
+  Value buildUnaryFn(ArrayRef<NamedAttribute> attrs, UnaryFn unaryFn,
+                     Value arg) {
     OpBuilder builder = getBuilder();
+    Value ret;
+
     switch (unaryFn) {
     case UnaryFn::exp:
-      return builder.create<math::ExpOp>(arg.getLoc(), arg);
+      ret = InstantiateExpOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
     case UnaryFn::log:
-      return builder.create<math::LogOp>(arg.getLoc(), arg);
+      ret = InstantiateLogOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
     case UnaryFn::abs:
-      return builder.create<math::AbsFOp>(arg.getLoc(), arg);
+      ret = InstantiateAbsOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
     case UnaryFn::ceil:
-      return builder.create<math::CeilOp>(arg.getLoc(), arg);
+      ret = InstantiateCeilOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
     case UnaryFn::floor:
-      return builder.create<math::FloorOp>(arg.getLoc(), arg);
+      ret = InstantiateFloorOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
     case UnaryFn::negf:
-      return builder.create<arith::NegFOp>(arg.getLoc(), arg);
+      ret = InstantiateNegfOperatorOpInterface::instantiateOperator(
+          builder, arg.getLoc(), attrs, arg);
+      break;
+    default:
+      llvm_unreachable("unsupported unary function");
     }
-    llvm_unreachable("unsupported unary function");
+
+    if (!ret) {
+      emitError(arg.getLoc(), "Could not instantiate operator '")
+          << stringifyEnum(unaryFn) << "' for type '" << arg.getType() << "'";
+    }
+
+    return ret;
   }
 
   // Build the binary functions defined by OpDSL.
-  Value buildBinaryFn(BinaryFn binaryFn, Value arg0, Value arg1) {
-    bool allComplex = isComplex(arg0) && isComplex(arg1);
-    bool allFloatingPoint = isFloatingPoint(arg0) && isFloatingPoint(arg1);
-    bool allInteger = isInteger(arg0) && isInteger(arg1);
-    bool allBool = allInteger && arg0.getType().getIntOrFloatBitWidth() == 1 &&
-                   arg1.getType().getIntOrFloatBitWidth() == 1;
-    if (!allComplex && !allFloatingPoint && !allInteger)
-      llvm_unreachable("unsupported non numeric type");
+  Value buildBinaryFn(ArrayRef<NamedAttribute> attrs, BinaryFn binaryFn,
+                      Value arg0, Value arg1) {
     OpBuilder builder = getBuilder();
+    Value ret;
+
     switch (binaryFn) {
     case BinaryFn::add:
-      if (allComplex)
-        return builder.create<complex::AddOp>(arg0.getLoc(), arg0, arg1);
-      if (allFloatingPoint)
-        return builder.create<arith::AddFOp>(arg0.getLoc(), arg0, arg1);
-      if (allBool)
-        return builder.create<arith::OrIOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::AddIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateAddOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::sub:
-      if (allComplex)
-        return builder.create<complex::SubOp>(arg0.getLoc(), arg0, arg1);
-      if (allFloatingPoint)
-        return builder.create<arith::SubFOp>(arg0.getLoc(), arg0, arg1);
-      if (allBool)
-        llvm_unreachable("unsupported operation: sub with bools");
-      return builder.create<arith::SubIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateSubOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::mul:
-      if (allComplex)
-        return builder.create<complex::MulOp>(arg0.getLoc(), arg0, arg1);
-      if (allFloatingPoint)
-        return builder.create<arith::MulFOp>(arg0.getLoc(), arg0, arg1);
-      if (allBool)
-        return builder.create<arith::AndIOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::MulIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateMulOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::max_signed:
-      assert(!allComplex);
-      if (allFloatingPoint)
-        return builder.create<arith::MaxFOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::MaxSIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateMaxSignedOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::min_signed:
-      assert(!allComplex);
-      if (allFloatingPoint)
-        return builder.create<arith::MinFOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::MinSIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateMinSignedOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::max_unsigned:
-      assert(!allComplex);
-      if (allFloatingPoint)
-        return builder.create<arith::MaxFOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::MaxUIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateMaxUnsignedOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
     case BinaryFn::min_unsigned:
-      assert(!allComplex);
-      if (allFloatingPoint)
-        return builder.create<arith::MinFOp>(arg0.getLoc(), arg0, arg1);
-      return builder.create<arith::MinUIOp>(arg0.getLoc(), arg0, arg1);
+      ret = InstantiateMinUnsignedOperatorOpInterface::instantiateOperator(
+          builder, arg0.getLoc(), attrs, {arg0, arg1});
+      break;
+    default:
+      llvm_unreachable("unsupported binary function");
     }
-    llvm_unreachable("unsupported binary function");
+
+    if (!ret) {
+      emitError(arg0.getLoc(), "Could not instantiate operator '")
+          << stringifyEnum(binaryFn) << "' for types '" << arg0.getType()
+          << "' and '" << arg1.getType() << "'";
+    }
+
+    return ret;
   }
 
   // Build the type functions defined by OpDSL.
-  Value buildTypeFn(TypeFn typeFn, Type toType, Value operand) {
+  Value buildTypeFn(ArrayRef<NamedAttribute> attrs, TypeFn typeFn, Type toType,
+                    Value operand) {
     switch (typeFn) {
     case TypeFn::cast_signed:
       return cast(toType, operand, false);
