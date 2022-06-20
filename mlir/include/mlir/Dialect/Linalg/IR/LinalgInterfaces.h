@@ -61,6 +61,7 @@ LogicalResult verifyStructuredOpInterface(Operation *op);
 } // namespace linalg
 } // namespace mlir
 
+#include "mlir/Dialect/Linalg/Frontend/LinalgFrontendInterfaces.h"
 #include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.h.inc"
 
 /// Include the generated interface declarations.
