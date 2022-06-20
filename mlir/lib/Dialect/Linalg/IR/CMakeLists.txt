@@ -20,6 +20,7 @@ add_mlir_dialect_library(MLIRLinalgDialect
   MLIRDialectUtils
   MLIRInferTypeOpInterface
   MLIRIR
+  MLIRLinalgFrontend
   MLIRParser
   MLIRSideEffectInterfaces
   MLIRSparseTensorDialect
