@@ -460,12 +460,6 @@ OpFoldResult ExtractOp::fold(ArrayRef<Attribute> operands) {
 //===----------------------------------------------------------------------===//
 
 void FromElementsOp::build(OpBuilder &builder, OperationState &result,
-                           Type resultType, ValueRange elements) {
-  result.addOperands(elements);
-  result.addTypes(resultType);
-}
-
-void FromElementsOp::build(OpBuilder &builder, OperationState &result,
                            ValueRange elements) {
   assert(!elements.empty() && "expected at least one element");
   Type resultType = RankedTensorType::get(
