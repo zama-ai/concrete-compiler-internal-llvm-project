@@ -3138,7 +3138,9 @@ OpFoldResult SubViewOp::fold(FoldAdaptor adaptor) {
   auto sourceShapedType = getSource().getType().cast<ShapedType>();
 
   if (resultShapedType.hasStaticShape() &&
-      resultShapedType == sourceShapedType) {
+      resultShapedType == sourceShapedType &&
+      llvm::all_of(static_offsets(), [](int64_t i) { return i == 0; }) &&
+      llvm::all_of(static_strides(), [](int64_t i) { return i == 1; })) {
     return getViewSource();
   }
 
