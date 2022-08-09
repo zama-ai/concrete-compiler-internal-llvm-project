@@ -2616,7 +2616,13 @@ OpFoldResult SubViewOp::fold(ArrayRef<Attribute> operands) {
   auto sourceShapedType = source().getType().cast<ShapedType>();
 
   if (resultShapedType.hasStaticShape() &&
-      resultShapedType == sourceShapedType) {
+      resultShapedType == sourceShapedType &&
+      llvm::all_of(
+          static_offsets().cast<ArrayAttr>(),
+          [](Attribute a) { return a.cast<IntegerAttr>().getInt() == 0; }) &&
+      llvm::all_of(static_strides().cast<ArrayAttr>(), [](Attribute a) {
+        return a.cast<IntegerAttr>().getInt() == 1;
+      })) {
     return getViewSource();
   }
 
