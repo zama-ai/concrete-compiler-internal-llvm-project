@@ -955,6 +955,10 @@ struct MemRefCopyOpLowering : public ConvertOpToLLVMPattern<memref::CopyOp> {
 
     unsigned typeSize =
         mlir::DataLayout::closest(op).getTypeSize(srcType.getElementType());
+    if (typeSize == 3)
+      typeSize = 4;
+    if (typeSize > 4 && typeSize < 8)
+      typeSize = 8;
     auto elemSize = rewriter.create<LLVM::ConstantOp>(
         loc, getIndexType(), rewriter.getIndexAttr(typeSize));
     auto copyFn = LLVM::lookupOrCreateMemRefCopyFn(
