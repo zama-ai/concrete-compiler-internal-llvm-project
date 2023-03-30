@@ -5,7 +5,7 @@
 
 // CHECK-LABEL: func @matmul_float
 func.func @matmul_float(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>, %output: memref<2x2xf32>) -> () {
-  linalg.matmul { add = "arith.addf", mul = "arith.mulf" }
+  linalg.matmul { add = { op = "arith.addf", op_attrs = {} }, mul = { op = "arith.mulf", op_attrs = {} } }
     ins(%arg0, %arg1: memref<2x2xf32>,
                       memref<2x2xf32>)
    outs(%output: memref<2x2xf32>)
@@ -16,7 +16,7 @@ func.func @matmul_float(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>, %output:
 
 // CHECK-LABEL: func @matmul_int
 func.func @matmul_int(%arg0: memref<2x2xi32>, %arg1: memref<2x2xi32>, %output: memref<2x2xi32>) -> () {
-  linalg.matmul { add = "arith.addi", mul = "arith.muli" }
+  linalg.matmul { add = { op = "arith.addi", op_attrs = {} }, mul = { op = "arith.muli", op_attrs = {} } }
     ins(%arg0, %arg1: memref<2x2xi32>,
                       memref<2x2xi32>)
    outs(%output: memref<2x2xi32>)
@@ -27,7 +27,7 @@ func.func @matmul_int(%arg0: memref<2x2xi32>, %arg1: memref<2x2xi32>, %output: m
 
 // CHECK-LABEL: func @matmul_index
 func.func @matmul_index(%arg0: memref<2x2xindex>, %arg1: memref<2x2xindex>, %output: memref<2x2xindex>) -> () {
-  linalg.matmul { add = "arith.addi", mul = "arith.muli" }
+  linalg.matmul { add = { op = "arith.addi", op_attrs = {} }, mul = { op = "arith.muli", op_attrs = {} } }
     ins(%arg0, %arg1: memref<2x2xindex>,
                       memref<2x2xindex>)
    outs(%output: memref<2x2xindex>)
@@ -38,7 +38,7 @@ func.func @matmul_index(%arg0: memref<2x2xindex>, %arg1: memref<2x2xindex>, %out
 
 // CHECK-LABEL: func @matmul_complex
 func.func @matmul_complex(%arg0: memref<2x2xcomplex<f32>>, %arg1: memref<2x2xcomplex<f32>>, %output: memref<2x2xcomplex<f32>>) -> () {
-  linalg.matmul { add = "complex.add", mul = "complex.mul" }
+  linalg.matmul { add = { op = "complex.add", op_attrs = {} }, mul = { op = "complex.mul", op_attrs = {} } }
     ins(%arg0, %arg1: memref<2x2xcomplex<f32>>,
                       memref<2x2xcomplex<f32>>)
    outs(%output: memref<2x2xcomplex<f32>>)

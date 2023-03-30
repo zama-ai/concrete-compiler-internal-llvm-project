@@ -72,19 +72,47 @@ class Linalg_InstantiateOperatorOpInterface<
            }
         }
 
-        ::mlir::StringAttr strAttr =
-              attr.value().getValue().dyn_cast<::mlir::StringAttr>();
-
-        if (!attr) {
+        ::mlir::DictionaryAttr opSpecAttr = attr.value().getValue().dyn_cast<::mlir::DictionaryAttr>();
+        if (!opSpecAttr) {
            ::mlir::emitError(
              location,
-             "Attribute }] # attrName # [{ must be a string attribute.");
+             "Attribute }] # attrName # [{ must be a dictionnary attribute.");
+           llvm_unreachable("");
+        }
+
+        auto maybeOpNameAttr = opSpecAttr.getNamed("op");
+        if (!maybeOpNameAttr.has_value()){
+           ::mlir::emitError(
+             location,
+             "Attribute }] # attrName # [{ is expected to contain an `op` string attribute.");
+           llvm_unreachable("");
+        }
+        ::mlir::StringAttr opNameAttr = maybeOpNameAttr.value().getValue().dyn_cast<::mlir::StringAttr>();
+        if (!opNameAttr) {
+           ::mlir::emitError(
+             location,
+             "Attribute `op` of dictionnary attribute }] # attrName # [{ must be a string attribute.");
+           llvm_unreachable("");
+        }
+
+        auto maybeOpAttrs = opSpecAttr.getNamed("op_attrs");
+        if (!maybeOpAttrs.has_value()){
+           ::mlir::emitError(
+             location,
+             "Attribute }] # attrName # [{ is expected to contain an `op_attrs` dictionnary attribute.");
+           llvm_unreachable("");
+        }
+        ::mlir::DictionaryAttr opAttrs = maybeOpAttrs.value().getValue().dyn_cast<::mlir::DictionaryAttr>();
+        if (!opAttrs) {
+           ::mlir::emitError(
+             location,
+             "Attribute `op_attrs` of dictionnary attribute }] # attrName # [{ must be a dictionary attribute.");
            llvm_unreachable("");
         }
 
         // Extract operation name and result type from specification
         std::pair<::llvm::StringRef, ::llvm::StringRef> spec =
-          strAttr.strref().split(":");
+          opNameAttr.strref().split(":");
         ::llvm::StringRef opName = std::get<0>(spec);
         ::llvm::StringRef resTypeName = std::get<1>(spec);
 
@@ -107,7 +135,7 @@ class Linalg_InstantiateOperatorOpInterface<
           }
         }
 
-        ::mlir::OperationState state(location, opName, operands, resType, {});
+        ::mlir::OperationState state(location, opName, operands, resType, opAttrs.getValue());
         ::mlir::Operation *oprtr = builder.create(state);
         return oprtr->getResult(0);
     }
