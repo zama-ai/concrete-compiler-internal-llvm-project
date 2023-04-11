@@ -1,3 +1,8 @@
+# Disclaimer
+
+That is not an actual fork of the LLVM project, but just a light fork with few commits to fix bugs or add features done by the Concrete team needed by the `concrete-compiler` project.
+Those contributions should be integrated in the upstream LLVM project or fixed by an another contributions.
+
 # The LLVM Compiler Infrastructure
 
 This directory and its sub-directories contain the source code for LLVM,
