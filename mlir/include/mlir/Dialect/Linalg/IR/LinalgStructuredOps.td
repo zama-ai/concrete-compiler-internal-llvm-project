@@ -17,7 +17,6 @@
 include "mlir/Dialect/Linalg/Frontend/LinalgFrontendInterfaces.td"
 include "mlir/Dialect/Linalg/IR/LinalgBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgInterfaces.td"
-include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/DestinationStyleOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -33,7 +32,6 @@ class LinalgStructuredBase_Op<string mnemonic, list<Trait> props>
        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
        DestinationStyleOpInterface,
        LinalgStructuredInterface,
-       RegionBranchOpInterface,
        ReifyRankedShapedTypeOpInterface], props)> {
   code structuredOpsBaseDecls = [{
     // Return whether the op accesses the iteration indices.
@@ -45,13 +43,6 @@ class LinalgStructuredBase_Op<string mnemonic, list<Trait> props>
         ReifiedRankedShapedTypeDims &reifiedReturnShapes) {
       return llvm::cast<LinalgOp>(getOperation()).reifyResultShapes(b,
           reifiedReturnShapes);
-    }
-
-    void getSuccessorRegions(
-        std::optional<unsigned> index, ArrayRef<Attribute> operands,
-        SmallVectorImpl<RegionSuccessor> &regions) {
-      // Op has a region, but conceptually the control flow does not enter the
-      // region.
     }
   }];
 }
