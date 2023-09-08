@@ -296,8 +296,7 @@ static bool shouldPrintElementsAttrWithHex(int64_t numElements) {
     }
   }
 
-  // Otherwise, default to printing with hex if the number of elements is >100.
-  return numElements > 100;
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
