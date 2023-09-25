@@ -436,7 +436,7 @@ mlir::scf::tileReductionUsingScf(PatternRewriter &b,
   // 1. create the inital tensor value.
   FailureOr<Operation *> identityTensor =
       op.generateInitialTensorForPartialReduction(b, loc, tileSize,
-                                                  reductionDim);
+                                                  reductionDim, nullptr);
   if (failed(identityTensor))
     return b.notifyMatchFailure(op,
                                 "cannot create a tensor of identity value.");

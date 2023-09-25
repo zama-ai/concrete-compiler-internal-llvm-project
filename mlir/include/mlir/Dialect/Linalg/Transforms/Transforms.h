@@ -567,11 +567,12 @@ struct ForallReductionTilingResult {
 /// %6 = linalg.generic %1 ["parallel", "reduction"]
 ///   : tensor<7x4xf32> -> tensor<7xf32>
 /// ```
-FailureOr<ForallReductionTilingResult>
-tileReductionUsingForall(RewriterBase &b, PartialReductionOpInterface op,
-                         ArrayRef<OpFoldResult> numThreads,
-                         ArrayRef<OpFoldResult> tileSizes = {},
-                         std::optional<ArrayAttr> mapping = std::nullopt);
+FailureOr<ForallReductionTilingResult> tileReductionUsingForall(
+    RewriterBase &b, PartialReductionOpInterface op,
+    ArrayRef<OpFoldResult> numThreads, ArrayRef<OpFoldResult> tileSizes = {},
+    std::optional<ArrayAttr> mapping = std::nullopt,
+    function_ref<std::optional<Value>(Operation *, OpBuilder &)>
+        extraGetNeutralElement = nullptr);
 
 /// All indices returned by IndexOp should be invariant with respect to
 /// tiling. Therefore, if an operation is tiled, we have to transform the

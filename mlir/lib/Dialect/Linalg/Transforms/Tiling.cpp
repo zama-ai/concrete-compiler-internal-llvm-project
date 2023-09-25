@@ -610,7 +610,9 @@ tileLinalgOpImpl(RewriterBase &b, LinalgOp op, ArrayRef<OpFoldResult> tileSizes,
 FailureOr<linalg::ForallReductionTilingResult> linalg::tileReductionUsingForall(
     RewriterBase &b, PartialReductionOpInterface op,
     ArrayRef<OpFoldResult> numThreads, ArrayRef<OpFoldResult> tileSizes,
-    std::optional<ArrayAttr> mapping) {
+    std::optional<ArrayAttr> mapping,
+    function_ref<std::optional<Value>(Operation *, OpBuilder &)>
+        extraGetNeutralElement) {
   Location loc = op.getLoc();
   OpBuilder::InsertionGuard g(b);
 
@@ -656,8 +658,8 @@ FailureOr<linalg::ForallReductionTilingResult> linalg::tileReductionUsingForall(
 
   // 1. Create the inital tensor value.
   FailureOr<Operation *> identityTensor =
-      op.generateInitialTensorForPartialReduction(b, loc, numThreads,
-                                                  reductionDim);
+      op.generateInitialTensorForPartialReduction(
+          b, loc, numThreads, reductionDim, extraGetNeutralElement);
   if (failed(identityTensor))
     return b.notifyMatchFailure(op,
                                 "cannot create a tensor of identity value.");

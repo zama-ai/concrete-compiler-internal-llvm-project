@@ -249,7 +249,9 @@ struct LinalgOpPartialReductionInterface
           LinalgOpPartialReductionInterface<LinalgOpTy>, LinalgOpTy> {
   FailureOr<Operation *> generateInitialTensorForPartialReduction(
       Operation *op, OpBuilder &b, Location loc, ArrayRef<OpFoldResult> sizes,
-      ArrayRef<int> reductionDims) const {
+      ArrayRef<int> reductionDims,
+      function_ref<std::optional<Value>(Operation *, OpBuilder&)> extraGetNeutralElement)
+      const {
     auto linalgOp = cast<LinalgOp>(op);
     OpBuilder::InsertionGuard guard(b);
     assert(reductionDims.size() == 1 &&
@@ -268,8 +270,13 @@ struct LinalgOpPartialReductionInterface
       return op->emitOpError("Failed to anaysis the reduction operation.");
 
     Operation *reductionOp = combinerOps[0];
-    std::optional<Attribute> identity = getNeutralElement(reductionOp);
-    if (!identity.has_value())
+    std::optional<Attribute> identityAttr = getNeutralElement(reductionOp);
+    std::optional<Value> identityVal;
+
+    if (!identityAttr.has_value() && extraGetNeutralElement)
+      identityVal = extraGetNeutralElement(reductionOp, b);
+
+    if (!identityAttr.has_value() && !identityVal.has_value())
       return op->emitOpError(
           "Failed to get an identity value for the reduction operation.");
 
@@ -294,7 +301,9 @@ struct LinalgOpPartialReductionInterface
     Value emptyTensor = b.create<tensor::EmptyOp>(
         loc, newOutputShape, linalgOp.getRegionOutputArgs()[0].getType(),
         dynamicDims);
-    Value constantOp = b.create<arith::ConstantOp>(loc, *identity);
+    Value constantOp = identityAttr.has_value()
+                           ? b.create<arith::ConstantOp>(loc, *identityAttr)
+                           : identityVal.value();
     auto identityTensor =
         b.create<linalg::FillOp>(loc, constantOp, emptyTensor);
     return identityTensor.getOperation();
