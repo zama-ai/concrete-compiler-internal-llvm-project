@@ -663,6 +663,12 @@ def ForallOp : SCF_Op<"forall", [
                                  Location loc);
 
     InParallelOp getTerminator();
+
+    /// Return operands used when entering the region at 'index'. These operands
+    /// correspond to the shared output operands, i.e., those excluding the
+    /// induction variable. Since there can be only one region, 0 is the only
+    /// valid value for `index`.
+    OperandRange getSuccessorEntryOperands(std::optional<unsigned> index);
   }];
 }
 

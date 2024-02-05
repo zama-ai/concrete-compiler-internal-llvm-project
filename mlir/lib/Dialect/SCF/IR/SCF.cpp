@@ -1471,6 +1471,19 @@ void ForallOp::getCanonicalizationPatterns(RewritePatternSet &results,
   results.add<DimOfForallOp, ForallOpControlOperandsFolder>(context);
 }
 
+/// Return operands used when entering the region at 'index'. These operands
+/// correspond to the shared output operands, i.e., those excluding the
+/// induction variable. Since there can be only one region, 0 is the only
+/// valid value for `index`.
+OperandRange
+ForallOp::getSuccessorEntryOperands(std::optional<unsigned> index) {
+  assert(index && *index == 0 && "invalid region index");
+
+  // The initial operands map to the loop arguments after the induction
+  // variable.
+  return getOutputs();
+}
+
 /// Given the region at `index`, or the parent operation if `index` is None,
 /// return the successor regions. These are the regions that may be selected
 /// during the flow of control. `operands` is a set of optional attributes that
@@ -1481,13 +1494,14 @@ void ForallOp::getSuccessorRegions(std::optional<unsigned> index,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
   // If the predecessor is ForallOp, branch into the body with empty arguments.
   if (!index) {
-    regions.push_back(RegionSuccessor(&getRegion()));
+    regions.push_back(RegionSuccessor(&getBodyRegion(), getRegionOutArgs()));
     return;
   }
 
   // Otherwise, the loop should branch back to the parent operation.
   assert(*index == 0 && "expected loop region");
-  regions.push_back(RegionSuccessor());
+  regions.push_back(RegionSuccessor(&getBodyRegion(), getRegionOutArgs()));
+  regions.push_back(RegionSuccessor(getResults()));
 }
 
 //===----------------------------------------------------------------------===//
