@@ -680,6 +680,14 @@ LogicalResult mlir::coalesceLoops(MutableArrayRef<scf::ForOp> loops) {
 
   builder.setInsertionPointToStart(outermost.getBody());
 
+  // 2.5 Update the iterArgs of the loops to coalesce
+  for (unsigned i = loops.size() - 1; i > 0; --i) {
+    auto iterOperands = loops[i].getIterOperands();
+    auto iterArgs = loops[i].getRegionIterArgs();
+    for (auto e : llvm::zip(iterOperands, iterArgs))
+      std::get<1>(e).replaceAllUsesWith(std::get<0>(e));
+  }
+
   // 3. Remap induction variables. For each original loop, the value of the
   // induction variable can be obtained by dividing the induction variable of
   // the linearized loop by the total number of iterations of the loops nested
@@ -705,10 +713,10 @@ LogicalResult mlir::coalesceLoops(MutableArrayRef<scf::ForOp> loops) {
   // 4. Move the operations from the innermost just above the second-outermost
   // loop, delete the extra terminator and the second-outermost loop.
   scf::ForOp second = loops[1];
-  innermost.getBody()->back().erase();
   outermost.getBody()->getOperations().splice(
       Block::iterator(second.getOperation()),
       innermost.getBody()->getOperations());
+  outermost.getBody()->back().erase();
   second.erase();
   return success();
 }
