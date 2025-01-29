@@ -321,5 +321,16 @@ def Test_IteratorTypeArrayAttr
     : TypedArrayAttrBase<Test_IteratorTypeEnum,
   "Iterator type should be an enum.">;
 
+def SlashAttr: Test_Attr<"Slash">{
+  let mnemonic = "slash_attr";
+
+  let parameters = (
+    ins
+    "int":$lhs,
+    "int":$rhs
+  );
+
+  let hasCustomAssemblyFormat = 1;
+}
 
 #endif // TEST_ATTRDEFS
