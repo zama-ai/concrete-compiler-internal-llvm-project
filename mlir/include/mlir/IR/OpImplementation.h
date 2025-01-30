@@ -549,6 +549,12 @@ public:
   /// Parse a '?' token if present.
   virtual ParseResult parseOptionalQuestion() = 0;
 
+  /// Parse a '-' token.
+  virtual ParseResult parseMinus() = 0;
+
+  /// Parse a '-' token if present.
+  virtual ParseResult parseOptionalMinus() = 0;
+
   /// Parse a '+' token.
   virtual ParseResult parsePlus() = 0;
 

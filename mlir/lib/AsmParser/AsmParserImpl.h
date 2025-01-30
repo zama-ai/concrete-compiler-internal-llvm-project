@@ -216,6 +216,16 @@ public:
     return success(parser.consumeIf(Token::star));
   }
 
+  /// Parses a '-' token.
+  ParseResult parseMinus() override {
+    return parser.parseToken(Token::minus, "expected '-'");
+  }
+
+  /// Parses a '-' token if present.
+  ParseResult parseOptionalMinus() override {
+    return success(parser.consumeIf(Token::minus));
+  }
+
   /// Parses a '+' token.
   ParseResult parsePlus() override {
     return parser.parseToken(Token::plus, "expected '+'");
