@@ -48,6 +48,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/LogicalResult.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/SourceMgr.h"
@@ -360,7 +361,8 @@ OptionalParseResult Parser::parseOptionalDecimalInteger(APInt &result) {
 
 ParseResult Parser::parseFloatFromLiteral(std::optional<APFloat> &result,
                                           const Token &tok, bool isNegative,
-                                          const llvm::fltSemantics &semantics) {
+                                          const llvm::fltSemantics &semantics,
+                                          bool emitErrors) {
   // Check for a floating point value.
   if (tok.is(Token::floatliteral)) {
     auto val = tok.getFloatingPointValue();
@@ -375,36 +377,51 @@ ParseResult Parser::parseFloatFromLiteral(std::optional<APFloat> &result,
 
   // Check for a hexadecimal float value.
   if (tok.is(Token::integer))
-    return parseFloatFromIntegerLiteral(result, tok, isNegative, semantics);
+    return parseFloatFromIntegerLiteral(result, tok, isNegative, semantics,
+                                        emitErrors);
 
-  return emitError(tok.getLoc()) << "expected floating point literal";
+  if (emitErrors)
+    return emitError(tok.getLoc()) << "expected floating point literal";
+  else
+    return llvm::failure();
 }
 
 /// Parse a floating point value from an integer literal token.
-ParseResult
-Parser::parseFloatFromIntegerLiteral(std::optional<APFloat> &result,
-                                     const Token &tok, bool isNegative,
-                                     const llvm::fltSemantics &semantics) {
+ParseResult Parser::parseFloatFromIntegerLiteral(
+    std::optional<APFloat> &result, const Token &tok, bool isNegative,
+    const llvm::fltSemantics &semantics, bool emitErrors) {
   StringRef spelling = tok.getSpelling();
   bool isHex = spelling.size() > 1 && spelling[1] == 'x';
   if (!isHex) {
-    return emitError(tok.getLoc(), "unexpected decimal integer literal for a "
-                                   "floating point value")
-               .attachNote()
-           << "add a trailing dot to make the literal a float";
+    if (emitErrors) {
+      return emitError(tok.getLoc(), "unexpected decimal integer literal for a "
+                                     "floating point value")
+                 .attachNote()
+             << "add a trailing dot to make the literal a float";
+    } else {
+      return failure();
+    }
   }
   if (isNegative) {
-    return emitError(tok.getLoc(),
-                     "hexadecimal float literal should not have a "
-                     "leading minus");
+    if (emitErrors) {
+      return emitError(tok.getLoc(),
+                       "hexadecimal float literal should not have a "
+                       "leading minus");
+    } else {
+      return failure();
+    }
   }
 
   APInt intValue;
   tok.getSpelling().getAsInteger(isHex ? 0 : 10, intValue);
   auto typeSizeInBits = APFloat::semanticsSizeInBits(semantics);
   if (intValue.getActiveBits() > typeSizeInBits) {
-    return emitError(tok.getLoc(),
-                     "hexadecimal float constant out of range for type");
+    if (emitErrors) {
+      return emitError(tok.getLoc(),
+                       "hexadecimal float constant out of range for type");
+    } else {
+      return failure();
+    }
   }
 
   APInt truncatedValue(typeSizeInBits,

@@ -283,31 +283,69 @@ public:
     return success();
   }
 
-  /// Parse a floating point value with given semantics from the stream. Since
-  /// this implementation parses the string as double precision and only
-  /// afterwards converts the value to the requested semantic, precision may be
-  /// lost.
-  ParseResult parseFloat(const llvm::fltSemantics &semantics,
-                         APFloat &result) override {
+  /// Parse a floating point value with given semantics from the
+  /// stream if present. Since this implementation parses the string
+  /// as double precision and only afterwards converts the value to
+  /// the requested semantic, precision may be lost. If `resetParser`
+  /// is false, the parser is not reset to the initial position if
+  /// parsing of the floating point value failed. If `emitErrors` is
+  /// true, errors will be emitted if parsing of the floating point
+  /// value fails.
+  ParseResult parseOptionalFloat(const llvm::fltSemantics &semantics,
+                                 APFloat &result, bool resetParser,
+                                 bool emitErrors) {
+    const char *curLexerPos = parser.getToken().getLoc().getPointer();
+
     bool isNegative = parser.consumeIf(Token::minus);
     Token curTok = parser.getToken();
     std::optional<APFloat> apResult;
     if (failed(parser.parseFloatFromLiteral(apResult, curTok, isNegative,
-                                            semantics)))
+                                            semantics, emitErrors))) {
+      if (resetParser)
+        parser.resetToken(curLexerPos);
+
       return failure();
+    }
+
     parser.consumeToken();
     result = *apResult;
     return success();
   }
 
-  /// Parse a floating point value from the stream.
-  ParseResult parseFloat(double &result) override {
+  ParseResult parseOptionalFloat(const llvm::fltSemantics &semantics,
+                                 APFloat &result) override {
+    return parseOptionalFloat(semantics, result, true, false);
+  }
+
+  ParseResult parseFloat(const llvm::fltSemantics &semantics,
+                         APFloat &result) override {
+    return parseOptionalFloat(semantics, result, false, true);
+  }
+
+  /// Parse a floating point value from the stream if present. If
+  /// `resetParser` is false, the parser is not reset to the initial
+  /// position if parsing of the floating point value failed. If
+  /// `emitErrors` is true, errors will be emitted if parsing of the
+  /// floating point value fails.
+  ParseResult parseOptionalFloat(double &result, bool resetParser,
+                                 bool emitErrors) {
     llvm::APFloat apResult(0.0);
-    if (parseFloat(APFloat::IEEEdouble(), apResult))
+    if (parseOptionalFloat(APFloat::IEEEdouble(), apResult, resetParser,
+                           emitErrors))
       return failure();
 
     result = apResult.convertToDouble();
     return success();
+  }
+
+  /// Parse a floating point value from the stream if present.
+  ParseResult parseOptionalFloat(double &result) override {
+    return parseOptionalFloat(result, true, false);
+  }
+
+  /// Parse a floating point value from the stream.
+  ParseResult parseFloat(double &result) override {
+    return parseOptionalFloat(result, false, true);
   }
 
   /// Parse an optional integer value from the stream.

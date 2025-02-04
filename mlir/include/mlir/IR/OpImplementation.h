@@ -740,12 +740,19 @@ public:
   /// Parse a `...` token if present;
   virtual ParseResult parseOptionalEllipsis() = 0;
 
+  /// Parse a floating point value from the stream if present.
+  virtual ParseResult parseOptionalFloat(double &result) = 0;
+
   /// Parse a floating point value from the stream.
   virtual ParseResult parseFloat(double &result) = 0;
 
   /// Parse a floating point value into APFloat from the stream.
   virtual ParseResult parseFloat(const llvm::fltSemantics &semantics,
                                  APFloat &result) = 0;
+
+  /// Parse a floating point value into APFloat from the stream if present.
+  virtual ParseResult parseOptionalFloat(const llvm::fltSemantics &semantics,
+                                         APFloat &result) = 0;
 
   /// Parse an integer value from the stream.
   template <typename IntT>
