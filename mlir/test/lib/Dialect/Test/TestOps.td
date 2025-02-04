@@ -298,6 +298,10 @@ def SlashAttrOp : TEST_Op<"slash_attr"> {
   let arguments = (ins SlashAttr:$attr);
 }
 
+def OptionalFloatAttrOp : TEST_Op<"optional_float_attr"> {
+  let arguments = (ins TestAttrWithOptionalFloat:$attr);
+}
+
 //===----------------------------------------------------------------------===//
 // Test Attributes Constraints
 //===----------------------------------------------------------------------===//

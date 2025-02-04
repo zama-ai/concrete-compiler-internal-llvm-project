@@ -333,4 +333,15 @@ def SlashAttr: Test_Attr<"Slash">{
   let hasCustomAssemblyFormat = 1;
 }
 
+// Test attribute whose parser triggers
+// `AsmParser::parseOptionalFloat`. Reads either a floating point
+// literal or a string literal prefixed by a minus sign (to test
+// whether the minus token is put back correctly by
+// `parseOptionalFloat()` if no floating point value follows).
+def TestAttrWithOptionalFloat: Test_Attr<"TestAttrWithOptionalFloat">{
+  let mnemonic = "attr_with_optional_float";
+  let parameters = (ins "::mlir::Attribute":$value);
+  let hasCustomAssemblyFormat = 1;
+}
+
 #endif // TEST_ATTRDEFS

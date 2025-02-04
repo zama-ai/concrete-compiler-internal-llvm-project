@@ -289,8 +289,11 @@ public:
     return success();
   }
 
-  /// Parse a floating point value from the stream.
-  ParseResult parseFloat(double &result) override {
+  /// Parse a floating point value from the stream if present, emit
+  /// errors if `emitError` is `true`.
+  ParseResult parseOptionalFloat(double &result, bool emitErrors = false) {
+    const char *curLexerPos = parser.getToken().getLoc().getPointer();
+
     bool isNegative = parser.consumeIf(Token::minus);
     Token curTok = parser.getToken();
     SMLoc loc = curTok.getLoc();
@@ -298,8 +301,16 @@ public:
     // Check for a floating point value.
     if (curTok.is(Token::floatliteral)) {
       auto val = curTok.getFloatingPointValue();
-      if (!val)
-        return emitError(loc, "floating point value too large");
+      if (!val) {
+        parser.resetToken(curLexerPos);
+
+        if (emitErrors) {
+          return emitError(loc, "floating point value too large");
+        } else {
+          return failure();
+        }
+      }
+
       parser.consumeToken(Token::floatliteral);
       result = isNegative ? -*val : *val;
       return success();
@@ -310,15 +321,33 @@ public:
       std::optional<APFloat> apResult;
       if (failed(parser.parseFloatFromIntegerLiteral(
               apResult, curTok, isNegative, APFloat::IEEEdouble(),
-              /*typeSizeInBits=*/64)))
+              /*typeSizeInBits=*/64, emitErrors))) {
+        parser.resetToken(curLexerPos);
         return failure();
+      }
 
       parser.consumeToken(Token::integer);
       result = apResult->convertToDouble();
       return success();
     }
 
-    return emitError(loc, "expected floating point literal");
+    parser.resetToken(curLexerPos);
+
+    if (emitErrors) {
+      return emitError(loc, "expected floating point literal");
+    } else {
+      return failure();
+    }
+  }
+
+  /// Parse a floating point value from the stream if present.
+  ParseResult parseOptionalFloat(double &result) override {
+    return parseOptionalFloat(result, false);
+  }
+
+  /// Parse a floating point value from the stream.
+  ParseResult parseFloat(double &result) override {
+    return parseOptionalFloat(result, true);
   }
 
   /// Parse an optional integer value from the stream.

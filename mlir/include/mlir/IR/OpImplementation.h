@@ -623,6 +623,9 @@ public:
   /// Parse a `...` token if present;
   virtual ParseResult parseOptionalEllipsis() = 0;
 
+  /// Parse a floating point value from the stream if present.
+  virtual ParseResult parseOptionalFloat(double &result) = 0;
+
   /// Parse a floating point value from the stream.
   virtual ParseResult parseFloat(double &result) = 0;
 

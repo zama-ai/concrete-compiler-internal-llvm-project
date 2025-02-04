@@ -272,6 +272,50 @@ void SlashAttr::print(AsmPrinter &printer) const {
 }
 
 //===----------------------------------------------------------------------===//
+// TestAttrWithOptionalFloat
+//===----------------------------------------------------------------------===//
+
+Attribute TestAttrWithOptionalFloatAttr::parse(AsmParser &parser, Type type) {
+  Attribute value;
+  double d;
+  std::string s;
+
+  if (parser.parseLess())
+    return Attribute();
+
+  // Attempt to parse floating point literal or a string prefixed by a
+  // minus sign. The latter is here to ensure that any tokens consumed
+  // during the parsing of the floating point value are put back on
+  // failure.
+  if (parser.parseOptionalFloat(d).succeeded()) {
+    value = FloatAttr::get(FloatType::getF64(parser.getContext()), d);
+  } else if (parser.parseMinus().succeeded() &&
+             parser.parseString(&s).succeeded()) {
+    value = StringAttr::get(parser.getContext(), s);
+  } else {
+    return Attribute();
+  }
+
+  if (parser.parseGreater())
+    return Attribute();
+
+  return TestAttrWithOptionalFloatAttr::get(parser.getContext(), value);
+}
+
+void TestAttrWithOptionalFloatAttr::print(AsmPrinter &printer) const {
+  Attribute value = getValue();
+
+  printer << "<";
+
+  if (mlir::StringAttr stra = value.dyn_cast<StringAttr>())
+    printer << "-\"" << stra.getValue() << "\"";
+  else if (mlir::FloatAttr fla = value.dyn_cast<FloatAttr>())
+    printer << fla.getValue();
+
+  printer << ">";
+}
+
+//===----------------------------------------------------------------------===//
 // TestDialect
 //===----------------------------------------------------------------------===//
 
