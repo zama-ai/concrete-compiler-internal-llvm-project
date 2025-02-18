@@ -15,6 +15,7 @@
 #include "mlir/IR/OpImplementation.h"
 #include "llvm/Support/Base64.h"
 #include <optional>
+#include <stack>
 
 namespace mlir {
 namespace detail {
@@ -640,6 +641,24 @@ public:
       (void)parser.codeCompleteExpectedTokens(tokens);
   }
 
+  //===--------------------------------------------------------------------===//
+  // Position management
+  //===--------------------------------------------------------------------===//
+
+  void pushLexerPos() override {
+    const char *curLexerPos = parser.getToken().getLoc().getPointer();
+    lexerPosStack.push(curLexerPos);
+  }
+
+  void popLexerPos(bool discard = false) override {
+    if (!discard) {
+      const char *oldLexerPos = lexerPosStack.top();
+      parser.resetToken(oldLexerPos);
+    }
+
+    lexerPosStack.pop();
+  }
+
 protected:
   /// The source location of the dialect symbol.
   SMLoc nameLoc;
@@ -649,6 +668,8 @@ protected:
 
   /// A flag that indicates if any errors were emitted during parsing.
   bool emittedError = false;
+
+  std::stack<const char *> lexerPosStack;
 };
 } // namespace detail
 } // namespace mlir
