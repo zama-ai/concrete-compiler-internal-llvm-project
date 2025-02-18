@@ -463,6 +463,9 @@ public:
 
   MLIRContext *getContext() const;
 
+  virtual void pushLexerPos() = 0;
+  virtual void popLexerPos(bool discard = false) = 0;
+
   /// Return the location of the original name token.
   virtual SMLoc getNameLoc() const = 0;
 
