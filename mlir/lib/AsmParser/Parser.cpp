@@ -1110,6 +1110,8 @@ Value OperationParser::resolveSSAUse(UnresolvedOperand useInfo, Type type) {
   // If we have already seen a value of this name, return it.
   if (useInfo.number < entries.size() && entries[useInfo.number].value) {
     Value result = entries[useInfo.number].value;
+    if (!type)
+      type = result.getType();
     // Check that the type matches the other uses.
     if (result.getType() == type)
       return maybeRecordUse(result);
