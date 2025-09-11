@@ -275,26 +275,41 @@ OptionalParseResult Parser::parseOptionalInteger(APInt &result) {
 }
 
 /// Parse a floating point value from an integer literal token.
-ParseResult Parser::parseFloatFromIntegerLiteral(
-    std::optional<APFloat> &result, const Token &tok, bool isNegative,
-    const llvm::fltSemantics &semantics, size_t typeSizeInBits) {
+ParseResult
+Parser::parseFloatFromIntegerLiteral(std::optional<APFloat> &result,
+                                     const Token &tok, bool isNegative,
+                                     const llvm::fltSemantics &semantics,
+                                     size_t typeSizeInBits, bool emitErrors) {
   SMLoc loc = tok.getLoc();
   StringRef spelling = tok.getSpelling();
   bool isHex = spelling.size() > 1 && spelling[1] == 'x';
   if (!isHex) {
-    return emitError(loc, "unexpected decimal integer literal for a "
-                          "floating point value")
-               .attachNote()
-           << "add a trailing dot to make the literal a float";
+    if (emitErrors) {
+      return emitError(loc, "unexpected decimal integer literal for a "
+                            "floating point value")
+                 .attachNote()
+             << "add a trailing dot to make the literal a float";
+    } else {
+      return failure();
+    }
   }
   if (isNegative) {
-    return emitError(loc, "hexadecimal float literal should not have a "
-                          "leading minus");
+    if (emitErrors) {
+      return emitError(loc, "hexadecimal float literal should not have a "
+                            "leading minus");
+    } else {
+      return failure();
+    }
   }
 
   std::optional<uint64_t> value = tok.getUInt64IntegerValue();
-  if (!value)
-    return emitError(loc, "hexadecimal float constant out of range for type");
+  if (!value) {
+    if (emitErrors) {
+      return emitError(loc, "hexadecimal float constant out of range for type");
+    } else {
+      return failure();
+    }
+  }
 
   if (&semantics == &APFloat::IEEEdouble()) {
     result = APFloat(semantics, APInt(typeSizeInBits, *value));
@@ -302,8 +317,14 @@ ParseResult Parser::parseFloatFromIntegerLiteral(
   }
 
   APInt apInt(typeSizeInBits, *value);
-  if (apInt != *value)
-    return emitError(loc, "hexadecimal float constant out of range for type");
+  if (apInt != *value) {
+    if (emitErrors) {
+      return emitError(loc, "hexadecimal float constant out of range for type");
+    } else {
+      return failure();
+    }
+  }
+
   result = APFloat(semantics, apInt);
 
   return success();
@@ -970,6 +991,8 @@ Value OperationParser::resolveSSAUse(UnresolvedOperand useInfo, Type type) {
   // If we have already seen a value of this name, return it.
   if (useInfo.number < entries.size() && entries[useInfo.number].value) {
     Value result = entries[useInfo.number].value;
+    if (!type)
+      type = result.getType();
     // Check that the type matches the other uses.
     if (result.getType() == type)
       return maybeRecordUse(result);
@@ -1073,6 +1096,13 @@ Value OperationParser::createForwardRefPlaceholder(SMLoc loc, Type type) {
   // cannot be created through normal user input, allowing us to distinguish
   // them.
   auto name = OperationName("builtin.unrealized_conversion_cast", getContext());
+  // Use bogus type if type is null to satisfy the constructor of the
+  // TypeRange created for the placeholder op
+  if (!type) {
+    type = IntegerType::get(getContext(), 42,
+                            mlir::IntegerType::SignednessSemantics::Unsigned);
+  }
+
   auto *op = Operation::create(
       getEncodedSourceLocation(loc), name, type, /*operands=*/{},
       /*attributes=*/std::nullopt, /*successors=*/{}, /*numRegions=*/0);

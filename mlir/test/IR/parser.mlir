@@ -1192,6 +1192,22 @@ func.func @parse_base64_test() {
   return
 }
 
+// CHECK-LABEL: func @parse_slash_test
+func.func @parse_slash_test() {
+  // CHECK: "test.slash_attr"() {attr = #test.slash_attr<1 / 2>} : () -> ()
+  "test.slash_attr"() { attr = #test.slash_attr<1 / 2> } : () -> ()
+  return
+}
+
+// CHECK-LABEL: func @parse_optional_float_test
+func.func @parse_optional_float_test() {
+  // CHECK: "test.optional_float_attr"() {attr = #test.attr_with_optional_float<4.000000e+00>} : () -> ()
+  // CHECK: "test.optional_float_attr"() {attr = #test.attr_with_optional_float<-"str">} : () -> ()
+  "test.optional_float_attr"() {attr = #test.attr_with_optional_float<4.0>} : () -> ()
+  "test.optional_float_attr"() {attr = #test.attr_with_optional_float<-"str">} : () -> ()
+  return
+}
+
 // CHECK-LABEL: func @"\22_string_symbol_reference\22"
 func.func @"\"_string_symbol_reference\""() {
   // CHECK: ref = @"\22_string_symbol_reference\22"

@@ -143,7 +143,8 @@ public:
   ParseResult parseFloatFromIntegerLiteral(std::optional<APFloat> &result,
                                            const Token &tok, bool isNegative,
                                            const llvm::fltSemantics &semantics,
-                                           size_t typeSizeInBits);
+                                           size_t typeSizeInBits,
+                                           bool emitErrors = true);
 
   /// Returns true if the current token corresponds to a keyword.
   bool isCurrentTokenAKeyword() const {

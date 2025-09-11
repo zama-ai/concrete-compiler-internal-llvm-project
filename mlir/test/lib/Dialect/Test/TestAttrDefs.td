@@ -173,6 +173,11 @@ def TestParamFour : ArrayRefParameter<"int", ""> {
   let printer = "::printIntArray($_printer, $_self)";
 }
 
+
+def TestParamVector : ArrayRefParameter<"int", ""> {
+  let cppStorageType = "std::vector<int>";
+}
+
 def TestParamUnsigned : AttrParameter<"uint64_t", ""> {}
 
 def TestAttrWithFormat : Test_Attr<"TestAttrWithFormat"> {
@@ -183,6 +188,7 @@ def TestAttrWithFormat : Test_Attr<"TestAttrWithFormat"> {
     "::mlir::IntegerAttr":$three,
     TestParamFour:$four,
     TestParamUnsigned:$five,
+    TestParamVector:$six,
     // Array of another attribute.
     ArrayRefParameter<
       "AttrWithTypeBuilderAttr", // The parameter C++ type.
@@ -192,7 +198,7 @@ def TestAttrWithFormat : Test_Attr<"TestAttrWithFormat"> {
 
   let mnemonic = "attr_with_format";
   let assemblyFormat = [{
-    `<` $one `:` struct($two, $four) `:` $three `:` $five `,`
+    `<` $one `:` struct($two, $four) `:` $three `:` $five `:` `[` $six `]` `,`
     `[` `` $arrayOfAttrWithTypeBuilderAttr `]` `>`
   }];
   let genVerifyDecl = 1;
@@ -321,5 +327,27 @@ def Test_IteratorTypeArrayAttr
     : TypedArrayAttrBase<Test_IteratorTypeEnum,
   "Iterator type should be an enum.">;
 
+def SlashAttr: Test_Attr<"Slash">{
+  let mnemonic = "slash_attr";
+
+  let parameters = (
+    ins
+    "int":$lhs,
+    "int":$rhs
+  );
+
+  let hasCustomAssemblyFormat = 1;
+}
+
+// Test attribute whose parser triggers
+// `AsmParser::parseOptionalFloat`. Reads either a floating point
+// literal or a string literal prefixed by a minus sign (to test
+// whether the minus token is put back correctly by
+// `parseOptionalFloat()` if no floating point value follows).
+def TestAttrWithOptionalFloat: Test_Attr<"TestAttrWithOptionalFloat">{
+  let mnemonic = "attr_with_optional_float";
+  let parameters = (ins "::mlir::Attribute":$value);
+  let hasCustomAssemblyFormat = 1;
+}
 
 #endif // TEST_ATTRDEFS

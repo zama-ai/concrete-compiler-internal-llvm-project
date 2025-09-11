@@ -15,6 +15,7 @@
 #include "mlir/IR/OpImplementation.h"
 #include "llvm/Support/Base64.h"
 #include <optional>
+#include <stack>
 
 namespace mlir {
 namespace detail {
@@ -206,6 +207,16 @@ public:
     return success(parser.consumeIf(Token::question));
   }
 
+  /// Parses a '/' token.
+  ParseResult parseSlash() override {
+    return parser.parseToken(Token::slash, "expected '/'");
+  }
+
+  /// Parses a '/' if present.
+  ParseResult parseOptionalSlash() override {
+    return success(parser.consumeIf(Token::slash));
+  }
+
   /// Parses a '*' token.
   ParseResult parseStar() override {
     return parser.parseToken(Token::star, "expected '*'");
@@ -279,8 +290,11 @@ public:
     return success();
   }
 
-  /// Parse a floating point value from the stream.
-  ParseResult parseFloat(double &result) override {
+  /// Parse a floating point value from the stream if present, emit
+  /// errors if `emitError` is `true`.
+  ParseResult parseOptionalFloat(double &result, bool emitErrors = false) {
+    const char *curLexerPos = parser.getToken().getLoc().getPointer();
+
     bool isNegative = parser.consumeIf(Token::minus);
     Token curTok = parser.getToken();
     SMLoc loc = curTok.getLoc();
@@ -288,8 +302,16 @@ public:
     // Check for a floating point value.
     if (curTok.is(Token::floatliteral)) {
       auto val = curTok.getFloatingPointValue();
-      if (!val)
-        return emitError(loc, "floating point value too large");
+      if (!val) {
+        parser.resetToken(curLexerPos);
+
+        if (emitErrors) {
+          return emitError(loc, "floating point value too large");
+        } else {
+          return failure();
+        }
+      }
+
       parser.consumeToken(Token::floatliteral);
       result = isNegative ? -*val : *val;
       return success();
@@ -300,15 +322,33 @@ public:
       std::optional<APFloat> apResult;
       if (failed(parser.parseFloatFromIntegerLiteral(
               apResult, curTok, isNegative, APFloat::IEEEdouble(),
-              /*typeSizeInBits=*/64)))
+              /*typeSizeInBits=*/64, emitErrors))) {
+        parser.resetToken(curLexerPos);
         return failure();
+      }
 
       parser.consumeToken(Token::integer);
       result = apResult->convertToDouble();
       return success();
     }
 
-    return emitError(loc, "expected floating point literal");
+    parser.resetToken(curLexerPos);
+
+    if (emitErrors) {
+      return emitError(loc, "expected floating point literal");
+    } else {
+      return failure();
+    }
+  }
+
+  /// Parse a floating point value from the stream if present.
+  ParseResult parseOptionalFloat(double &result) override {
+    return parseOptionalFloat(result, false);
+  }
+
+  /// Parse a floating point value from the stream.
+  ParseResult parseFloat(double &result) override {
+    return parseOptionalFloat(result, true);
   }
 
   /// Parse an optional integer value from the stream.
@@ -594,6 +634,24 @@ public:
       (void)parser.codeCompleteExpectedTokens(tokens);
   }
 
+  //===--------------------------------------------------------------------===//
+  // Position management
+  //===--------------------------------------------------------------------===//
+
+  void pushLexerPos() override {
+    const char *curLexerPos = parser.getToken().getLoc().getPointer();
+    lexerPosStack.push(curLexerPos);
+  }
+
+  void popLexerPos(bool discard = false) override {
+    if (!discard) {
+      const char *oldLexerPos = lexerPosStack.top();
+      parser.resetToken(oldLexerPos);
+    }
+
+    lexerPosStack.pop();
+  }
+
 protected:
   /// The source location of the dialect symbol.
   SMLoc nameLoc;
@@ -603,6 +661,8 @@ protected:
 
   /// A flag that indicates if any errors were emitted during parsing.
   bool emittedError = false;
+
+  std::stack<const char *> lexerPosStack;
 };
 } // namespace detail
 } // namespace mlir

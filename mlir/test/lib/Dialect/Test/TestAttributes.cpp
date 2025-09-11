@@ -98,11 +98,10 @@ TestI64ElementsAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-LogicalResult
-TestAttrWithFormatAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                               int64_t one, std::string two, IntegerAttr three,
-                               ArrayRef<int> four, uint64_t five,
-                               ArrayRef<AttrWithTypeBuilderAttr> arrayOfAttrs) {
+LogicalResult TestAttrWithFormatAttr::verify(
+    function_ref<InFlightDiagnostic()> emitError, int64_t one, std::string two,
+    IntegerAttr three, ArrayRef<int> four, uint64_t five, ArrayRef<int> six,
+    ArrayRef<AttrWithTypeBuilderAttr> arrayOfAttrs) {
   if (four.size() != static_cast<unsigned>(one))
     return emitError() << "expected 'one' to equal 'four.size()'";
   return success();
@@ -251,6 +250,68 @@ getDynamicCustomAssemblyFormatAttr(TestDialect *testDialect) {
   return DynamicAttrDefinition::get("dynamic_custom_assembly_format",
                                     testDialect, std::move(verifier),
                                     std::move(parser), std::move(printer));
+}
+
+//===----------------------------------------------------------------------===//
+// SlashAttr
+//===----------------------------------------------------------------------===//
+
+Attribute SlashAttr::parse(AsmParser &parser, Type type) {
+  int lhs, rhs;
+
+  if (parser.parseLess() || parser.parseInteger(lhs) || parser.parseSlash() ||
+      parser.parseInteger(rhs) || parser.parseGreater())
+    return Attribute();
+
+  return SlashAttr::get(parser.getContext(), lhs, rhs);
+}
+
+void SlashAttr::print(AsmPrinter &printer) const {
+  printer << "<" << getLhs() << " / " << getRhs() << ">";
+}
+
+//===----------------------------------------------------------------------===//
+// TestAttrWithOptionalFloat
+//===----------------------------------------------------------------------===//
+
+Attribute TestAttrWithOptionalFloatAttr::parse(AsmParser &parser, Type type) {
+  Attribute value;
+  double d;
+  std::string s;
+
+  if (parser.parseLess())
+    return Attribute();
+
+  // Attempt to parse floating point literal or a string prefixed by a
+  // minus sign. The latter is here to ensure that any tokens consumed
+  // during the parsing of the floating point value are put back on
+  // failure.
+  if (parser.parseOptionalFloat(d).succeeded()) {
+    value = FloatAttr::get(FloatType::getF64(parser.getContext()), d);
+  } else if (parser.parseMinus().succeeded() &&
+             parser.parseString(&s).succeeded()) {
+    value = StringAttr::get(parser.getContext(), s);
+  } else {
+    return Attribute();
+  }
+
+  if (parser.parseGreater())
+    return Attribute();
+
+  return TestAttrWithOptionalFloatAttr::get(parser.getContext(), value);
+}
+
+void TestAttrWithOptionalFloatAttr::print(AsmPrinter &printer) const {
+  Attribute value = getValue();
+
+  printer << "<";
+
+  if (mlir::StringAttr stra = value.dyn_cast<StringAttr>())
+    printer << "-\"" << stra.getValue() << "\"";
+  else if (mlir::FloatAttr fla = value.dyn_cast<FloatAttr>())
+    printer << fla.getValue();
+
+  printer << ">";
 }
 
 //===----------------------------------------------------------------------===//

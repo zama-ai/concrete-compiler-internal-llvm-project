@@ -463,6 +463,9 @@ public:
 
   MLIRContext *getContext() const;
 
+  virtual void pushLexerPos() = 0;
+  virtual void popLexerPos(bool discard = false) = 0;
+
   /// Return the location of the original name token.
   virtual SMLoc getNameLoc() const = 0;
 
@@ -561,6 +564,12 @@ public:
   /// Parse a '+' token if present.
   virtual ParseResult parseOptionalPlus() = 0;
 
+  /// Parse a '/' token.
+  virtual ParseResult parseSlash() = 0;
+
+  /// Parse a '/' token if present.
+  virtual ParseResult parseOptionalSlash() = 0;
+
   /// Parse a '*' token.
   virtual ParseResult parseStar() = 0;
 
@@ -616,6 +625,9 @@ public:
 
   /// Parse a `...` token if present;
   virtual ParseResult parseOptionalEllipsis() = 0;
+
+  /// Parse a floating point value from the stream if present.
+  virtual ParseResult parseOptionalFloat(double &result) = 0;
 
   /// Parse a floating point value from the stream.
   virtual ParseResult parseFloat(double &result) = 0;
