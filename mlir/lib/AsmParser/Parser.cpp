@@ -1215,6 +1215,13 @@ Value OperationParser::createForwardRefPlaceholder(SMLoc loc, Type type) {
   // cannot be created through normal user input, allowing us to distinguish
   // them.
   auto name = OperationName("builtin.unrealized_conversion_cast", getContext());
+  // Use bogus type if type is null to satisfy the constructor of the
+  // TypeRange created for the placeholder op
+  if (!type) {
+    type = IntegerType::get(getContext(), 42,
+                            mlir::IntegerType::SignednessSemantics::Unsigned);
+  }
+
   auto *op = Operation::create(
       getEncodedSourceLocation(loc), name, type, /*operands=*/{},
       /*attributes=*/NamedAttrList(), /*properties=*/nullptr,
