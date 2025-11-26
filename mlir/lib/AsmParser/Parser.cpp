@@ -81,10 +81,9 @@ AsmParserCodeCompleteContext::~AsmParserCodeCompleteContext() = default;
 /// Parse a list of comma-separated items with an optional delimiter.  If a
 /// delimiter is provided, then an empty list is allowed.  If not, then at
 /// least one element will be parsed.
-ParseResult
-Parser::parseCommaSeparatedList(Delimiter delimiter,
-                                function_ref<ParseResult()> parseElementFn,
-                                StringRef contextMessage) {
+ParseResult Parser::parseCommaSeparatedList(
+    Delimiter delimiter, function_ref<OptionalParseResult()> parseElementFn,
+    StringRef contextMessage) {
   switch (delimiter) {
   case Delimiter::None:
     break;
@@ -136,12 +135,17 @@ Parser::parseCommaSeparatedList(Delimiter delimiter,
   }
 
   // Non-empty case starts with an element.
-  if (parseElementFn())
+  auto result = parseElementFn();
+  if (result.has_value() && result.value().failed())
     return failure();
 
   // Otherwise we have a list of comma separated elements.
   while (consumeIf(Token::comma)) {
-    if (parseElementFn())
+    result = parseElementFn();
+    if (!result.has_value()) {
+      break;
+    }
+    if (result.value().failed())
       return failure();
   }
 
@@ -170,10 +174,9 @@ Parser::parseCommaSeparatedList(Delimiter delimiter,
 ///   abstract-list ::= rightToken                  // if allowEmptyList == true
 ///   abstract-list ::= element (',' element)* rightToken
 ///
-ParseResult
-Parser::parseCommaSeparatedListUntil(Token::Kind rightToken,
-                                     function_ref<ParseResult()> parseElement,
-                                     bool allowEmptyList) {
+ParseResult Parser::parseCommaSeparatedListUntil(
+    Token::Kind rightToken, function_ref<OptionalParseResult()> parseElement,
+    bool allowEmptyList) {
   // Handle the empty case.
   if (getToken().is(rightToken)) {
     if (!allowEmptyList)

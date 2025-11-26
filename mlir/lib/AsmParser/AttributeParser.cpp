@@ -73,9 +73,16 @@ Attribute Parser::parseAttribute(Type type) {
   case Token::l_square: {
     consumeToken(Token::l_square);
     SmallVector<Attribute, 4> elements;
-    auto parseElt = [&]() -> ParseResult {
-      elements.push_back(parseAttribute());
-      return elements.back() ? success() : failure();
+    auto parseElt = [&]() -> OptionalParseResult {
+      Attribute attr;
+      auto result = parseOptionalAttribute(attr);
+      if (!result.has_value())
+        return result;
+      if (result.has_value() && result.value().succeeded()) {
+        elements.push_back(attr);
+        return success();
+      }
+      return failure();
     };
 
     if (parseCommaSeparatedListUntil(Token::r_square, parseElt))
@@ -294,7 +301,7 @@ OptionalParseResult Parser::parseOptionalAttribute(SymbolRefAttr &result,
 ///
 ParseResult Parser::parseAttributeDict(NamedAttrList &attributes) {
   llvm::SmallDenseSet<StringAttr> seenKeys;
-  auto parseElt = [&]() -> ParseResult {
+  auto parseElt = [&]() -> OptionalParseResult {
     // The name of an attribute can either be a bare identifier, or a string.
     std::optional<StringAttr> nameId;
     if (getToken().is(Token::string))
@@ -303,7 +310,7 @@ ParseResult Parser::parseAttributeDict(NamedAttrList &attributes) {
              getToken().isKeyword())
       nameId = builder.getStringAttr(getTokenSpelling());
     else
-      return emitWrongTokenError("expected attribute name");
+      return OptionalParseResult();
 
     if (nameId->empty())
       return emitError("expected valid attribute name");

@@ -41,7 +41,7 @@ public:
   /// Parse a comma-separated list of elements up until the specified end token.
   ParseResult
   parseCommaSeparatedListUntil(Token::Kind rightToken,
-                               function_ref<ParseResult()> parseElement,
+                               function_ref<OptionalParseResult()> parseElement,
                                bool allowEmptyList = true);
 
   /// Parse a list of comma-separated items with an optional delimiter.  If a
@@ -49,13 +49,13 @@ public:
   /// least one element will be parsed.
   ParseResult
   parseCommaSeparatedList(Delimiter delimiter,
-                          function_ref<ParseResult()> parseElementFn,
+                          function_ref<OptionalParseResult()> parseElementFn,
                           StringRef contextMessage = StringRef());
 
   /// Parse a comma separated list of elements that must have at least one entry
   /// in it.
   ParseResult
-  parseCommaSeparatedList(function_ref<ParseResult()> parseElementFn) {
+  parseCommaSeparatedList(function_ref<OptionalParseResult()> parseElementFn) {
     return parseCommaSeparatedList(Delimiter::None, parseElementFn);
   }
 

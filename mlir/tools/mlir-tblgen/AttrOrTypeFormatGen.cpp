@@ -516,10 +516,19 @@ void DefFormat::genStructParser(StructDirective *el, FmtContext &ctx,
   // Loop body start for struct parser.
   const char *const loopStart = R"(
     ::llvm::StringRef _paramKey;
-    if ($_parser.parseKeyword(&_paramKey)) {
+    if ($_parser.parseOptionalKeyword(&_paramKey)) {
       $_parser.emitError($_parser.getCurrentLocation(),
                          "expected a parameter name in struct");
       return {};
+    }
+    if (!_loop_body(_paramKey)) return {};
+)";
+
+  // Loop body start for struct parser.
+  const char *const loopStartOptional = R"(
+    ::llvm::StringRef _paramKey;
+    if ($_parser.parseOptionalKeyword(&_paramKey)) {
+      break;
     }
     if (!_loop_body(_paramKey)) return {};
 )";
@@ -539,6 +548,8 @@ void DefFormat::genStructParser(StructDirective *el, FmtContext &ctx,
   const char *const loopTerminator = R"(
   if ((odsStructIndex != {0} - 1) && odsParser.parseComma())
     return {{};
+  else
+    std::ignore = odsParser.parseOptionalComma();
 }
 )";
 
@@ -603,13 +614,16 @@ void DefFormat::genStructParser(StructDirective *el, FmtContext &ctx,
     } else {
       os << "do {\n";
     }
+    os.indent();
+    os.getStream().printReindented(tgfmt(loopStartOptional, &ctx).str());
+    os.unindent();
   } else {
     os.getStream().printReindented(
         tgfmt(loopHeader, &ctx, el->getNumElements()).str());
+    os.indent();
+    os.getStream().printReindented(tgfmt(loopStart, &ctx).str());
+    os.unindent();
   }
-  os.indent();
-  os.getStream().printReindented(tgfmt(loopStart, &ctx).str());
-  os.unindent();
 
   // Print the loop terminator. For optional parameters, we have to check that
   // all mandatory parameters have been parsed.
