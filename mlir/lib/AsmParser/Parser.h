@@ -142,12 +142,18 @@ public:
     state.curToken = state.lex.lexToken();
   }
 
-  /// Consume the specified token if present and return success.  On failure,
-  /// output a diagnostic and return failure.
-  ParseResult parseToken(Token::Kind expectedToken, const Twine &message);
+  /// Consume the specified token if present and return success.  On
+  /// failure, output a diagnostic and return failure. if `emitErrors`
+  /// is false, no diagnostic is emitted upon failure.
+  ParseResult parseToken(Token::Kind expectedToken, const Twine &message,
+                         bool emitErrors = true);
 
   /// Parses a quoted string token if present.
   ParseResult parseOptionalString(std::string *string);
+
+  /// Parse an optional integer value from the stream. Only emit
+  /// errors if `emitErrors` is true.
+  OptionalParseResult parseOptionalInteger(APInt &result, bool emitErrors);
 
   /// Parse an optional integer value from the stream.
   OptionalParseResult parseOptionalInteger(APInt &result);

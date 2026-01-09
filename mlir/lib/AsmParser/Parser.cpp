@@ -268,11 +268,11 @@ InFlightDiagnostic Parser::emitWrongTokenError(const Twine &message) {
 
 /// Consume the specified token if present and return success.  On failure,
 /// output a diagnostic and return failure.
-ParseResult Parser::parseToken(Token::Kind expectedToken,
-                               const Twine &message) {
+ParseResult Parser::parseToken(Token::Kind expectedToken, const Twine &message,
+                               bool emitErrors) {
   if (consumeIf(expectedToken))
     return success();
-  return emitWrongTokenError(message);
+  return emitErrors ? emitWrongTokenError(message) : failure();
 }
 
 /// Parses a quoted string token if present.
@@ -287,7 +287,8 @@ ParseResult Parser::parseOptionalString(std::string *string) {
 }
 
 /// Parse an optional integer value from the stream.
-OptionalParseResult Parser::parseOptionalInteger(APInt &result) {
+OptionalParseResult Parser::parseOptionalInteger(APInt &result,
+                                                 bool emitErrors) {
   // Parse `false` and `true` keywords as 0 and 1 respectively.
   if (consumeIf(Token::kw_false)) {
     result = false;
@@ -304,13 +305,18 @@ OptionalParseResult Parser::parseOptionalInteger(APInt &result) {
 
   bool negative = consumeIf(Token::minus);
   Token curTok = getToken();
-  if (parseToken(Token::integer, "expected integer value"))
+  if (parseToken(Token::integer, "expected integer value", emitErrors))
     return failure();
 
   StringRef spelling = curTok.getSpelling();
   bool isHex = spelling.size() > 1 && spelling[1] == 'x';
-  if (spelling.getAsInteger(isHex ? 0 : 10, result))
-    return emitError(curTok.getLoc(), "integer value too large");
+  if (spelling.getAsInteger(isHex ? 0 : 10, result)) {
+    if (emitErrors) {
+      return emitError(curTok.getLoc(), "integer value too large");
+    } else {
+      return failure();
+    }
+  }
 
   // Make sure we have a zero at the top so we return the right signedness.
   if (result.isNegative())
@@ -321,6 +327,11 @@ OptionalParseResult Parser::parseOptionalInteger(APInt &result) {
     result.negate();
 
   return success();
+}
+
+/// Parse an optional integer value from the stream.
+OptionalParseResult Parser::parseOptionalInteger(APInt &result) {
+  return parseOptionalInteger(result, true);
 }
 
 /// Parse an optional integer value only in decimal format from the stream.

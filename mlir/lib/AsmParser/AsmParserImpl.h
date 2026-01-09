@@ -354,6 +354,13 @@ public:
     return parser.parseOptionalInteger(result);
   }
 
+  /// Parse an optional integer value from the stream. Emit errors
+  /// only if `emitErrors` is `true`.
+  OptionalParseResult parseOptionalInteger(APInt &result,
+                                           bool emitErrors) override {
+    return parser.parseOptionalInteger(result, emitErrors);
+  }
+
   /// Parse an optional integer value from the stream.
   OptionalParseResult parseOptionalDecimalInteger(APInt &result) override {
     return parser.parseOptionalDecimalInteger(result);

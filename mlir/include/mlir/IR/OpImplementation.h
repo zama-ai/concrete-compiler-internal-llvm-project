@@ -779,6 +779,8 @@ public:
 
   /// Parse an optional integer value from the stream.
   virtual OptionalParseResult parseOptionalInteger(APInt &result) = 0;
+  virtual OptionalParseResult parseOptionalInteger(APInt &result,
+                                                   bool emitErrors) = 0;
   virtual OptionalParseResult parseOptionalDecimalInteger(APInt &result) = 0;
 
 private:
@@ -805,9 +807,11 @@ private:
 
 public:
   template <typename IntT>
-  OptionalParseResult parseOptionalInteger(IntT &result) {
-    return parseOptionalIntegerAndCheck(
-        result, [&](APInt &result) { return parseOptionalInteger(result); });
+  OptionalParseResult parseOptionalInteger(IntT &result,
+                                           bool emitErrors = false) {
+    return parseOptionalIntegerAndCheck(result, [&](APInt &result) {
+      return parseOptionalInteger(result, emitErrors);
+    });
   }
 
   template <typename IntT>
