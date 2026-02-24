@@ -22,6 +22,7 @@ SlowDynamicAPInt &SlowDynamicAPInt::operator=(int64_t Val) {
   return *this = SlowDynamicAPInt(Val);
 }
 SlowDynamicAPInt::operator int64_t() const { return Val.getSExtValue(); }
+SlowDynamicAPInt::operator APInt() const { return Val; }
 
 hash_code llvm::detail::hash_value(const SlowDynamicAPInt &X) {
   return hash_value(X.Val);

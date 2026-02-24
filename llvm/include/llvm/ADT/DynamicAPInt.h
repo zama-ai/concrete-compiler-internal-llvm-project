@@ -153,6 +153,12 @@ public:
       return getSmall();
     return static_cast<int64_t>(getLarge());
   }
+  LLVM_ATTRIBUTE_ALWAYS_INLINE explicit operator APInt() const {
+    if (isSmall())
+      return APInt(64, getSmall());
+
+    return static_cast<APInt>(getLarge());
+  }
 
   bool operator==(const DynamicAPInt &O) const;
   bool operator!=(const DynamicAPInt &O) const;
