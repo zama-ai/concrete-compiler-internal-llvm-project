@@ -41,6 +41,7 @@ public:
   LLVM_ABI explicit SlowDynamicAPInt(const APInt &Val);
   LLVM_ABI SlowDynamicAPInt &operator=(int64_t Val);
   LLVM_ABI explicit operator int64_t() const;
+  LLVM_ABI explicit operator APInt() const;
   LLVM_ABI SlowDynamicAPInt operator-() const;
   LLVM_ABI bool operator==(const SlowDynamicAPInt &O) const;
   LLVM_ABI bool operator!=(const SlowDynamicAPInt &O) const;
