@@ -2752,8 +2752,10 @@ ParseResult TopLevelOperationParser::parseAttributeAliasDef() {
   if (parseToken(Token::equal, "expected '=' in attribute alias definition"))
     return failure();
 
-  // Parse the attribute value.
+  // Parse the attribute value, exposing the alias name to attribute parsers.
+  state.currentAttributeAliasName = aliasName;
   Attribute attr = parseAttribute();
+  state.currentAttributeAliasName = {};
   if (!attr)
     return failure();
 

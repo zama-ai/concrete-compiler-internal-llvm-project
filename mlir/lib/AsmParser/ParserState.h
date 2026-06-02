@@ -91,6 +91,10 @@ struct ParserState {
   // popped when done. At the top-level we start with "builtin" as the
   // default, so that the top-level `module` operation parses as-is.
   SmallVector<StringRef> defaultDialectStack{"builtin"};
+
+  /// The name of the attribute alias currently being defined, or empty if not
+  /// currently parsing an attribute alias definition.
+  StringRef currentAttributeAliasName;
 };
 
 } // namespace detail

@@ -586,6 +586,11 @@ public:
   /// Return the location of the original name token.
   virtual SMLoc getNameLoc() const = 0;
 
+  /// If the attribute currently being parsed is the value of an attribute alias
+  /// definition (e.g. `#alias = #dialect.attr<...>`), returns the alias name
+  /// (e.g. "alias"). Returns an empty StringRef otherwise.
+  virtual StringRef getCurrentAttributeAliasName() const { return {}; }
+
   //===--------------------------------------------------------------------===//
   // Utilities
   //===--------------------------------------------------------------------===//

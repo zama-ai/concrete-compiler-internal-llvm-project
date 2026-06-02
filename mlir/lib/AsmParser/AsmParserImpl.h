@@ -35,6 +35,10 @@ public:
   /// Return the location of the original name token.
   SMLoc getNameLoc() const override { return nameLoc; }
 
+  StringRef getCurrentAttributeAliasName() const override {
+    return parser.getState().currentAttributeAliasName;
+  }
+
   //===--------------------------------------------------------------------===//
   // Utilities
   //===--------------------------------------------------------------------===//
