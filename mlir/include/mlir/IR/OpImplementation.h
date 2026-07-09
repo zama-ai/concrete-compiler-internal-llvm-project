@@ -591,6 +591,11 @@ public:
   /// (e.g. "alias"). Returns an empty StringRef otherwise.
   virtual StringRef getCurrentAttributeAliasName() const { return {}; }
 
+  /// If the type currently being parsed is the value of a type alias
+  /// definition (e.g. `!alias = !dialect.type<...>`), returns the alias name
+  /// (e.g. "alias"). Returns an empty StringRef otherwise.
+  virtual StringRef getCurrentTypeAliasName() const { return {}; }
+
   //===--------------------------------------------------------------------===//
   // Utilities
   //===--------------------------------------------------------------------===//

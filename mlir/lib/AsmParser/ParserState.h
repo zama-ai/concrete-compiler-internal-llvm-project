@@ -95,6 +95,10 @@ struct ParserState {
   /// The name of the attribute alias currently being defined, or empty if not
   /// currently parsing an attribute alias definition.
   StringRef currentAttributeAliasName;
+
+  /// The name of the type alias currently being defined, or empty if not
+  /// currently parsing a type alias definition.
+  StringRef currentTypeAliasName;
 };
 
 } // namespace detail

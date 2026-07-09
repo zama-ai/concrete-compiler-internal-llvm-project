@@ -39,6 +39,10 @@ public:
     return parser.getState().currentAttributeAliasName;
   }
 
+  StringRef getCurrentTypeAliasName() const override {
+    return parser.getState().currentTypeAliasName;
+  }
+
   //===--------------------------------------------------------------------===//
   // Utilities
   //===--------------------------------------------------------------------===//

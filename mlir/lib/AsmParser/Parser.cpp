@@ -2786,8 +2786,10 @@ ParseResult TopLevelOperationParser::parseTypeAliasDef() {
   if (parseToken(Token::equal, "expected '=' in type alias definition"))
     return failure();
 
-  // Parse the type.
+  // Parse the type, exposing the alias name to type parsers.
+  state.currentTypeAliasName = aliasName;
   Type aliasedType = parseType();
+  state.currentTypeAliasName = {};
   if (!aliasedType)
     return failure();
 
